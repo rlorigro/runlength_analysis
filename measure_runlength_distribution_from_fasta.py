@@ -165,22 +165,60 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
         axes[1][1].set_title(INDEX_TO_BASE[1])
 
     elif matrix.ndim == 3:
-        matrix_A = numpy.log10(matrix[0, :cutoff, :cutoff])
+        matrix_A = matrix[0, :cutoff, :cutoff]
 
         if test_spot:
             matrix_A[cutoff, 0] = numpy.max(matrix_A)
 
-        axes[0][0].imshow(matrix_A)
+        if normalize_matrices:
+            matrix_A = normalize(matrix_A, pseudocount=0)
+            axes[0][0].imshow(matrix_A)
+        else:
+            axes[0][0].imshow(numpy.log10(matrix_A))
+
         axes[0][0].set_title(INDEX_TO_BASE[0])
 
-        axes[1][0].imshow(numpy.log10(matrix[3, :cutoff, :cutoff]))
+        matrix_T = matrix[3, :cutoff, :cutoff]
+
+        if normalize_matrices:
+            matrix_T  = normalize(matrix_T, pseudocount=0)
+            axes[1][0].imshow(matrix_T)
+        else:
+            axes[1][0].imshow(numpy.log10(matrix_T))
         axes[1][0].set_title(INDEX_TO_BASE[3])
 
-        axes[0][1].imshow(numpy.log10(matrix[2, :cutoff, :cutoff]))
+        matrix_G = matrix[2, :cutoff, :cutoff]
+
+        if normalize_matrices:
+            matrix_G  = normalize(matrix_G, pseudocount=0)
+            axes[0][1].imshow(matrix_G)
+        else:
+            axes[0][1].imshow(numpy.log10(matrix_G))
         axes[0][1].set_title(INDEX_TO_BASE[2])
 
-        axes[1][1].imshow(numpy.log10(matrix[1, :cutoff, :cutoff]))
+        matrix_C = matrix[1, :cutoff, :cutoff]
+
+        if normalize_matrices:
+            matrix_C  = normalize(matrix_C, pseudocount=0)
+            axes[1][1].imshow(matrix_C)
+        else:
+            axes[1][1].imshow(numpy.log10(matrix_C))
         axes[1][1].set_title(INDEX_TO_BASE[1])
+
+    axes[1][1].set_xlabel("Observed length")
+    axes[1][0].set_xlabel("Observed length")
+    axes[1][0].set_ylabel("True length")
+    axes[0][0].set_ylabel("True length")
+
+    axes[1][1].set_yticks(numpy.arange(0,cutoff, 2))
+    axes[1][0].set_yticks(numpy.arange(0,cutoff, 2))
+    axes[0][0].set_yticks(numpy.arange(0,cutoff, 2))
+    axes[0][1].set_yticks(numpy.arange(0,cutoff, 2))
+
+    axes[1][1].set_xticks(numpy.arange(0, cutoff, 2))
+    axes[1][0].set_xticks(numpy.arange(0, cutoff, 2))
+    axes[0][0].set_xticks(numpy.arange(0, cutoff, 2))
+    axes[0][1].set_xticks(numpy.arange(0, cutoff, 2))
 
     pyplot.show()
     pyplot.close()
@@ -329,7 +367,8 @@ def update_frequency_matrix(observed_length, true_base, true_length, alignment_r
     # observed_base_index = BASE_TO_INDEX[observed_base]
     true_base_index = BASE_TO_INDEX[true_base]
 
-    # print(true_base, observed_base, true_length, observed_length)
+    observed_length = min(MAX_RUNLENGTH, observed_length)
+    true_length = min(MAX_RUNLENGTH, true_length)
 
     matrix[int(alignment_reversal), true_base_index, true_length, observed_length] += 1
 
@@ -690,7 +729,7 @@ def runlength_encode_fasta(fasta_sequence_path):
     for contig_name in contig_names:
         chromosome_length = fasta_handler.get_chr_sequence_length(contig_name)
 
-        sequence = fasta_handler.get_sequence(chromosome_name=contig_name, start=0, stop=chromosome_length)
+        sequence = fasta_handler.get_sequence(chromosome_name=contig_name, start=None, stop=None)
 
         bases, lengths = runlength_encode(sequence)
 
@@ -699,6 +738,55 @@ def runlength_encode_fasta(fasta_sequence_path):
         # print(contig_name, len(bases), len(lengths))
 
     return runlength_sequences
+
+
+def iteratively_align_as_RLE(ref_fasta_path, read_fasta_path, output_dir):
+    """
+    Given 2 fasta files for reads and reference, iterate them, runlength encode their sequences, and write the RLE
+    sequences to a new file, then align them with minimap2
+    :param ref_fasta_path:
+    :param read_fasta_path:
+    :param output_dir:
+    :return:
+    """
+    ref_fasta_filename_prefix = ".".join(os.path.basename(ref_fasta_path).split(".")[:-1])
+    runlength_ref_fasta_filename = ref_fasta_filename_prefix + "_rle.fasta"
+    runlength_ref_fasta_path = os.path.join(output_dir, runlength_ref_fasta_filename)
+
+    read_fasta_filename_prefix = ".".join(os.path.basename(read_fasta_path).split(".")[:-1])
+    runlength_read_fasta_filename = read_fasta_filename_prefix + "_rle.fasta"
+    runlength_read_fasta_path = os.path.join(output_dir, runlength_read_fasta_filename)
+
+    print("SAVING run length fasta file:", runlength_ref_fasta_path)
+    print("SAVING run length fasta file:", runlength_read_fasta_path)
+
+    with open(runlength_ref_fasta_path, "w") as file:
+        fasta_handler = FastaHandler(ref_fasta_path)
+        names = fasta_handler.get_contig_names()
+
+        for name in names:
+            sequence = fasta_handler.get_sequence(chromosome_name=name, start=None, stop=None)
+            sequence, lengths = runlength_encode(sequence)
+
+            file.write(">"+name+" RLE\n")
+            file.write(sequence + "\n")
+
+    with open(runlength_read_fasta_path, "w") as file:
+        fasta_handler = FastaHandler(read_fasta_path)
+        names = fasta_handler.get_contig_names()
+
+        for name in names:
+            sequence = fasta_handler.get_sequence(chromosome_name=name, start=None, stop=None)
+            sequence, lengths = runlength_encode(sequence)
+
+            file.write(">"+name+" RLE\n")
+            file.write(sequence + "\n")
+
+    output_sam_file_path, output_bam_file_path = align_minimap(output_dir=output_dir,
+                                                               ref_sequence_path=runlength_ref_fasta_path,
+                                                               reads_sequence_path=runlength_read_fasta_path)
+
+    return output_bam_file_path
 
 
 def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_read_path, runlength_read_sequences, output_dir):
@@ -717,7 +805,8 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
 
     output_sam_file_path, output_bam_file_path = align_minimap(output_dir=output_dir,
                                                                ref_sequence_path=runlength_reference_path,
-                                                               reads_sequence_path=runlength_read_path)
+                                                               reads_sequence_path=runlength_read_path,
+                                                               k=18)
 
     return output_bam_file_path
 
@@ -725,7 +814,8 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
 def main():
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
     # read_fasta_path = "/home/ryan/data/Nanopore/ecoli/runnie/v2/rad2_pass_runnie_0_1_10_11_12_13_v2.fa"
-    read_fasta_path = "/home/ryan/code/runnie_parser/output/version_comparison/mode/runlength_matrix_from_read_contigs_2019_3_12_13_34_58_427106/rad2_pass_runnie_0_1_10_11_12_13.fasta"
+    # read_fasta_path = "/home/ryan/software/shasta/output/run_2019_3_23_14_29_ecoli_wg_guppy_NO_BAYES/Assembly.fasta"
+    read_fasta_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/sequence_subset_train_60x_10kb.fastq"
     # read_fasta_path = "/home/ryan/data/Nanopore/ecoli/runnie/rad2_pass_runnie_0_v2.fa"
 
     # ---- TEST DATA ----

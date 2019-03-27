@@ -22,6 +22,78 @@ class RunlengthHandler:
         self.buffered_read = None
         self.n = 0
 
+    def extract_reads_by_id(self, id_set, output_path, print_status=False, sequence_cutoff=None):
+        if sequence_cutoff is None:
+            sequence_cutoff = len(id_set)
+
+        file = open(self.path, "r")
+        out_file = open(output_path, "w")
+
+        valid_read = False
+        read_lines = list()
+        n_sequences = 0
+        n_found = 0
+        for l,line in enumerate(file):
+            # Header
+            if line[0] == "#":
+                n_sequences += 1
+
+                if valid_read and len(read_lines) > 0:
+                    n_found += 1
+
+                    # Reset flag
+                    valid_read = False
+
+                    # Write the buffer
+                    for read_line in read_lines:
+                        out_file.write(read_line)
+
+                    read_lines = list()
+
+                if print_status and l%1000:
+                    sys.stderr.write("\r %d %d" % (n_sequences,n_found))
+
+                read_id = " ".join(line.strip().split(" ")[1:])
+
+                if read_id in id_set:
+                    valid_read = True
+
+                if n_found == sequence_cutoff:
+                    break
+
+            if valid_read:
+                read_lines.append(line)
+
+        if valid_read and len(read_lines) > 0:
+            # Write the buffer
+            for read_line in read_lines:
+                out_file.write(read_line)
+
+        sys.stderr.write("\n")
+        file.close()
+        out_file.close()
+
+    def iterate_read_names(self, print_status=False, line_number=False):
+        file = open(self.path, "r")
+        n_reads = 0
+
+        for l,line in enumerate(file):
+            # Header
+            if line[0] == "#":
+                read_id = " ".join(line.strip().split(" ")[1:])
+                n_reads += 1
+
+                if print_status:
+                    sys.stderr.write("\r %d" % n_reads)
+
+                if line_number:
+                    yield l, read_id
+
+                else:
+                    yield read_id
+
+        sys.stderr.write("\n")
+
     def iterate_file(self, sequence_cutoff=sys.maxsize, print_status=False):
         if print_status:
             sys.stderr.write("Reading runnie file...\n")
@@ -57,6 +129,8 @@ class RunlengthHandler:
         if print_status:
             sys.stderr.write("\nCompleted\n")
 
+        self.__init__(self.path)
+
     def parse_header_line(self, line):
         # Add previous (completed) read to buffer slot
         if self.read_id is not None:
@@ -66,7 +140,7 @@ class RunlengthHandler:
             self.n += 1
 
         # Parse new read
-        self.read_id = line.strip().split(" ")[-1]
+        self.read_id = " ".join(line.strip().split(" ")[1:])
         self.sequence = list()
         self.shapes = list()
         self.scales = list()

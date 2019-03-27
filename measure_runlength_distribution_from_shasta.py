@@ -1,5 +1,5 @@
 from discrete_weibull_distribution import evaluate_discrete_weibull, calculate_mode
-from handlers.RunlengthHandler_v2 import RunlengthHandler
+from handlers.ShastaRunlengthHandler import ShastaRunlengthHandler
 from handlers.FileManager import FileManager
 from handlers.FastaHandler import FastaHandler
 from handlers.BamHandler import BamHandler
@@ -256,12 +256,12 @@ def complement_base_index(base_index):
     return 3 - base_index
 
 
-def normalize(frequency_matrix, pseudocount):
+def normalize(frequency_matrix, pseudocount, diagonal_bias):
     frequency_matrix = frequency_matrix.astype(numpy.float32)
 
     frequency_matrix += pseudocount
 
-    diagonal_pseudocount = pseudocount
+    diagonal_pseudocount = diagonal_bias
     diagonal_mask = numpy.eye(frequency_matrix.shape[0], frequency_matrix.shape[1], dtype=numpy.bool)
     frequency_matrix[diagonal_mask] += diagonal_pseudocount
 
@@ -273,7 +273,7 @@ def normalize(frequency_matrix, pseudocount):
     return probability_matrix
 
 
-def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, delimiter=",", log_normalize=False, plot=False, default_type=int):
+def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, delimiter=",", log_normalize=False, plot=False, pseudocount=0, diagonal_bias=0, default_type=int):
     if log_normalize:
         filename = "probability_matrices_directional_" + FileManager.get_datetime_string() + ".csv"
     else:
@@ -292,7 +292,7 @@ def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_
 
             type = default_type
             if log_normalize:
-                matrix = normalize(matrix, pseudocount=15)
+                matrix = normalize(matrix, pseudocount=pseudocount, diagonal_bias=diagonal_bias)
                 type = float
 
             if plot:
@@ -316,7 +316,7 @@ def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_
     file.close()
 
 
-def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, delimiter=",", log_normalize=False, plot=False):
+def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, delimiter=",", log_normalize=False, pseudocount=0, diagonal_bias=0, plot=False):
     if log_normalize:
         filename = "probability_matrices_" + FileManager.get_datetime_string() + ".csv"
     else:
@@ -356,19 +356,25 @@ def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequen
     file.close()
 
 
-def update_frequency_matrix(observed_scale, observed_shape, true_base, true_length, alignment_reversal, matrix):
+def update_frequency_matrix(observed_pileup, consensus_base, true_base, true_length, alignment_reversal, matrix):
     # Did alignment reverse complement the sequence (via BAM) and ref (via pysam)? if so, revert to forward direction
     if alignment_reversal:
         true_base = complement_base(true_base)
 
     true_base_index = BASE_TO_INDEX[true_base]
 
-    # Evaluate the distribution at all indexes
-    y = evaluate_discrete_weibull(shape=observed_shape, scale=observed_scale, x=X_RANGE)
+    for item in observed_pileup:
+        observed_length = item.length
+        observed_base = item.base
+        count = item.count
 
-    matrix[int(alignment_reversal), true_base_index, true_length, 1:] += y
+        if alignment_reversal:
+            observed_base = complement_base(observed_base)
 
-    # matrix[int(alignment_reversal), true_base_index, true_length, numpy.argmax(y)+1] += 1
+        if observed_base == consensus_base:
+            matrix[int(alignment_reversal), true_base_index, true_length, observed_length] += count
+
+        # matrix[int(alignment_reversal), true_base_index, true_length, observed_length] += count
 
     return
 
@@ -384,6 +390,8 @@ def complement_base(base):
         complement = "G"
     elif base == "G":
         complement = "C"
+    elif base == "_":
+        complement = "_"
     else:
         exit("ERROR: invalid base has no complement: %s" % base)
 
@@ -392,28 +400,24 @@ def complement_base(base):
 
 def reverse_complement_runlength_read(runlength_read):
     sequence = runlength_read.sequence
-    scales = runlength_read.scales
-    shapes = runlength_read.shapes
+    pileup = runlength_read.pileup
 
     reverse_complemented_sequence = list()
-    reverse_complemented_scales = list()
-    reverse_complemented_shapes = list()
+    reverse_complemented_pileup = list()
 
     for i in reversed(range(len(sequence))):
         reverse_complemented_sequence.append(complement_base(sequence[i]))
-        reverse_complemented_scales.append(scales[i])
-        reverse_complemented_shapes.append(shapes[i])
+        reverse_complemented_pileup.append(pileup[i])
 
     reverse_complemented_sequence = "".join(reverse_complemented_sequence)
 
     runlength_read.sequence = reverse_complemented_sequence
-    runlength_read.scales = reverse_complemented_scales
-    runlength_read.shapes = reverse_complemented_shapes
+    runlength_read.pileup = reverse_complemented_pileup
 
     return runlength_read
 
 
-def parse_match(alignment_position, length, read_sequence, observed_scales_segment, observed_shapes_segment,
+def parse_match(alignment_position, length, read_sequence, observed_pileup_segment,
                 ref_sequence, ref_runlengths, reversal_status, matrix):
     """
     Process a cigar operation that is a match
@@ -430,13 +434,14 @@ def parse_match(alignment_position, length, read_sequence, observed_scales_segme
 
     for i in range(start, stop):
         ref_base = ref_sequence[i-alignment_position]
+        read_base = read_sequence[i-alignment_position]
+
         ref_runlength = ref_runlengths[i-alignment_position]
 
-        observed_scale = observed_scales_segment[i-alignment_position]
-        observed_shape = observed_shapes_segment[i-alignment_position]
+        observed_pileup = observed_pileup_segment[i-alignment_position]
 
-        update_frequency_matrix(observed_scale=observed_scale,
-                                observed_shape=observed_shape,
+        update_frequency_matrix(observed_pileup=observed_pileup,
+                                consensus_base=read_base,
                                 true_base=ref_base,
                                 true_length=ref_runlength,
                                 alignment_reversal=reversal_status,
@@ -446,7 +451,7 @@ def parse_match(alignment_position, length, read_sequence, observed_scales_segme
 
 
 def parse_cigar_tuple(cigar_code, length, alignment_position, read_sequence_segment, ref_sequence_segment,
-                      ref_runlengths_segment, observed_scales_segment, observed_shapes_segment, reversal_status, matrix):
+                      ref_runlengths_segment, observed_pileup_segment, reversal_status, matrix):
     """
     Read an RLE reference segment, a segment of an assembly, and all the aligned reads that contributed to that assembly
     in order to generate a matrix of true vs observed runlengths. FOR NOW using only matches.
@@ -479,8 +484,7 @@ def parse_cigar_tuple(cigar_code, length, alignment_position, read_sequence_segm
         parse_match(alignment_position=alignment_position,
                     length=length,
                     read_sequence=read_sequence_segment,
-                    observed_scales_segment=observed_scales_segment,
-                    observed_shapes_segment=observed_shapes_segment,
+                    observed_pileup_segment=observed_pileup_segment,
                     ref_sequence=ref_sequence_segment,
                     ref_runlengths=ref_runlengths_segment,
                     reversal_status=reversal_status,
@@ -563,8 +567,7 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
             if reversal_status:
                 runlength_read = reverse_complement_runlength_read(runlength_read)
 
-            observed_scales = runlength_read.scales
-            observed_shapes = runlength_read.shapes
+            observed_pileup = runlength_read.pileup
 
             ref_sequence = fasta_handler.get_sequence(chromosome_name=chromosome_name,
                                                       start=ref_alignment_start,
@@ -593,12 +596,11 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
 
                 # get the sequence segments that are affected by this operation
                 read_sequence_segment = read_sequence[read_index:read_index+length]
-                observed_scales_segment = observed_scales[read_index:read_index+length]
-                observed_shapes_segment = observed_shapes[read_index:read_index+length]
+                observed_pileup_segment = observed_pileup[read_index:read_index+length]
                 ref_sequence_segment = ref_sequence[ref_index:ref_index+length]
                 ref_runlengths_segment = ref_runlengths[ref_index:ref_index+length]
 
-                if len(observed_scales_segment) == 0 or len(observed_shapes_segment) == 0:
+                if len(observed_pileup_segment) == 0:
                     print(len(read_sequence), read_index, read_index + length, length)
 
                 # skip parsing the first segment if it is not a match
@@ -618,8 +620,7 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
                                                                               read_sequence_segment=read_sequence_segment,
                                                                               ref_sequence_segment=ref_sequence_segment,
                                                                               ref_runlengths_segment=ref_runlengths_segment,
-                                                                              observed_scales_segment=observed_scales_segment,
-                                                                              observed_shapes_segment=observed_shapes_segment,
+                                                                              observed_pileup_segment=observed_pileup_segment,
                                                                               reversal_status=reversal_status,
                                                                               matrix=matrix)
 
@@ -630,26 +631,23 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
     return read_data
 
 
-def generate_runlength_frequency_matrix(runlength_ref_sequence_path, assembly_vs_ref_bam_path,
+def generate_runlength_frequency_matrix(runlength_ref_sequence_path, reads_vs_ref_bam_path,
                                         runlength_ref_sequences, runlength_read_data):
     """
     Take an alignment of RLE sequences (in BAM format, using minimap as an aligner) in combination with the series of
     lengths (which have been excluded from the BAM) and aligned observations from Benedicts' model to generate a matrix
     of true vs observed lengths.
-    :param chromosome_name:
     :param runlength_ref_sequence_path:
-    :param assembly_vs_ref_bam_path:
-    :param runlength_ref_sequence:
-    :param runlength_ref_lengths:
-    :param observations:
+    :param reads_vs_ref_bam_path:
+    :param runlength_ref_sequences:
+    :param runlength_read_data:
     :return:
     """
-
     for chromosome_name in runlength_ref_sequences:
         shape = [2,4,MAX_RUNLENGTH+1,MAX_RUNLENGTH+1]
         matrix = numpy.zeros(shape, dtype=numpy.float64)
 
-        bam_handler = BamHandler(assembly_vs_ref_bam_path)
+        bam_handler = BamHandler(reads_vs_ref_bam_path)
         fasta_handler = FastaHandler(runlength_ref_sequence_path)
 
         chromosome_length = fasta_handler.get_chr_sequence_length(chromosome_name)
@@ -701,28 +699,28 @@ def runlength_encode_fasta(fasta_sequence_path):
 
         runlength_sequences[contig_name] = (bases, lengths)
 
-        # print(contig_name, len(bases), len(lengths))
+        print(contig_name, len(bases), len(lengths))
 
     return runlength_sequences
 
 
-def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_read_path, runlength_read_sequences, output_dir):
+def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_reads_path, runlength_reads_sequences, output_dir):
     print("SAVING run length fasta file:", runlength_reference_path)
-    print("SAVING run length fasta file:", runlength_read_path)
+    print("SAVING run length fasta file:", runlength_reads_path)
 
     with open(runlength_reference_path, "w") as file:
         for contig_name in runlength_ref_sequences:
             file.write(">"+contig_name+" RLE\n")
             file.write(runlength_ref_sequences[contig_name][SEQUENCE] + "\n")
 
-    with open(runlength_read_path, "w") as file:
-        for contig_name in runlength_read_sequences:
+    with open(runlength_reads_path, "w") as file:
+        for contig_name in runlength_reads_sequences:
             file.write(">"+contig_name+" RLE\n")
-            file.write(runlength_read_sequences[contig_name].sequence + "\n")
+            file.write(runlength_reads_sequences[contig_name].sequence + "\n")
 
     output_sam_file_path, output_bam_file_path = align_minimap(output_dir=output_dir,
                                                                ref_sequence_path=runlength_reference_path,
-                                                               reads_sequence_path=runlength_read_path,
+                                                               reads_sequence_path=runlength_reads_path,
                                                                k=18)
 
     return output_bam_file_path
@@ -733,7 +731,7 @@ def main():
     # runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_14_18_19_4_215702_runnie.out"
 
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    runlength_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/runnie_subset_train_60x_10kb.out"
+    shasta_path = "/home/ryan/code/runlength_analysis/data/ecoli_shasta_pileup_data.csv"
 
     output_parent_dir = "output/"
     output_dir = "runlength_matrix_from_runnie_output_" + FileManager.get_datetime_string()
@@ -744,35 +742,32 @@ def main():
     runlength_ref_fasta_filename = ref_fasta_filename_prefix + "_rle.fasta"
     runlength_ref_fasta_path = os.path.join(output_dir, runlength_ref_fasta_filename)
 
-    assembly_fasta_filename_prefix = ".".join(os.path.basename(runlength_path).split(".")[:-1])
-    runlength_assembly_fasta_filename = assembly_fasta_filename_prefix + "_rle.fasta"
-    runlength_assembly_fasta_path = os.path.join(output_dir, runlength_assembly_fasta_filename)
+    reads_fasta_filename_prefix = ".".join(os.path.basename(shasta_path).split(".")[:-1])
+    runlength_reads_fasta_filename = reads_fasta_filename_prefix + "_rle.fasta"
+    runlength_reads_fasta_path = os.path.join(output_dir, runlength_reads_fasta_filename)
 
-    handler = RunlengthHandler(runlength_path)
+    shasta_handler = ShastaRunlengthHandler(shasta_path)
 
-    reads = handler.iterate_file(sequence_cutoff=sys.maxsize)
+    print("Parsing shasta file...")
 
-    read_data = dict()
+    name, read = shasta_handler.get_pileup_data(cutoff=sys.maxsize)
 
-    print("Parsing runnie file...")
-
-    for r,read in enumerate(reads):
-        read_data[read.id] = read
+    read_data = {name:read}
 
     print("\nRLE encoding reference sequence...")
 
     runlength_ref_sequences = runlength_encode_fasta(fasta_sequence_path=ref_fasta_path)
 
-    assembly_vs_ref_bam_path = align_as_RLE(runlength_reference_path=runlength_ref_fasta_path,
-                                            runlength_ref_sequences=runlength_ref_sequences,
-                                            runlength_read_path=runlength_assembly_fasta_path,
-                                            runlength_read_sequences=read_data,
-                                            output_dir=output_dir)
+    reads_vs_ref_bam_path = align_as_RLE(runlength_reference_path=runlength_ref_fasta_path,
+                                         runlength_ref_sequences=runlength_ref_sequences,
+                                         runlength_reads_path=runlength_reads_fasta_path,
+                                         runlength_reads_sequences=read_data,
+                                         output_dir=output_dir)
 
     print("\nGenerating matrices...")
 
     chromosomal_matrices = generate_runlength_frequency_matrix(runlength_ref_sequence_path=runlength_ref_fasta_path,
-                                                               assembly_vs_ref_bam_path=assembly_vs_ref_bam_path,
+                                                               reads_vs_ref_bam_path=reads_vs_ref_bam_path,
                                                                runlength_ref_sequences=runlength_ref_sequences,
                                                                runlength_read_data=read_data)
 
@@ -786,6 +781,8 @@ def main():
         save_directional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                               frequency_matrices=matrix,
                                                               log_normalize=True,
+                                                              pseudocount=15,
+                                                              diagonal_bias=0,
                                                               plot=False,
                                                               default_type=float)
 
@@ -795,8 +792,8 @@ def main():
         # nonzero_mask = numpy.invert(zero_mask)
         # matrix[zero_mask] += numpy.min(matrix[nonzero_mask])
 
-        plot_base_matrices(matrix, test_spot=False, normalize_matrices=False)
-        plot_base_matrices(matrix, test_spot=False, normalize_matrices=True)
+        plot_base_matrices(sum_complementary_matrices(matrix), test_spot=False, normalize_matrices=False)
+        plot_base_matrices(sum_complementary_matrices(matrix), test_spot=False, normalize_matrices=True)
 
         frequency_matrices = sum_complementary_matrices(matrix)
 

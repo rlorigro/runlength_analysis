@@ -54,13 +54,13 @@ def get_aligned_segments(fasta_handler, bam_handler, chromosome_name, pileup_sta
     if include_ref:
         segment_grabber.max_coverage -= 1
 
-    sequence_dictionary = segment_grabber.get_read_segments()
+    sequence_dictionary = segment_grabber.get_aligned_read_segments()
 
     return sequence_dictionary
 
 
 def main():
-    bam_file_path = "/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_vMode2/rad2_pass_runnie_0_1_10_11_12_13_rle_VS_refEcoli_rle.sorted.bam"
+    bam_file_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_sequence_2019_3_27_14_59_24_409353/sequence_subset_test_60x_10kb_rle_VS_refEcoli_rle.sorted.bam"
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
     # -------------------------------------------------------------------------
 
@@ -73,8 +73,8 @@ def main():
     bam_handler = BamHandler(bam_file_path)
     fasta_handler = FastaHandler(ref_fasta_path)
 
-    pileup_start = 100000
-    pileup_end = 100000+100      # add random variation here ?
+    pileup_start = 300
+    pileup_end = 300+100      # add random variation here ?
 
     aligned_segments = get_aligned_segments(fasta_handler=fasta_handler,
                                             bam_handler=bam_handler,

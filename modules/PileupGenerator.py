@@ -1,6 +1,7 @@
 from handlers.BamHandler import BamHandler
 from handlers.FastaHandler import FastaHandler
 from collections import defaultdict
+import sys
 
 
 MAX_COVERAGE = 50
@@ -38,10 +39,20 @@ class PileupGenerator:
 
         self.insert_offsets = defaultdict(int)
 
-        # print(self.start_position)
-        # print(self.end_position)
-
     def get_read_segments(self):
+        for r,read in enumerate(self.reads):
+            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
+                    and read.is_supplementary is False and read.is_unmapped is False and read.is_qcfail is False:
+
+                if read.is_read2:
+                    sys.stderr.write("WARNING: 'is_read2' flag found 'True' for read: %s" % read.query_name)
+                    continue
+
+                self.get_aligned_segment_from_read(read)
+
+        return self.sequences
+
+    def get_aligned_read_segments(self):
         for r,read in enumerate(self.reads):
             if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
                     and read.is_supplementary is False and read.is_unmapped is False and read.is_qcfail is False:
@@ -52,17 +63,11 @@ class PileupGenerator:
             if r == self.max_coverage:
                 break
 
-        # for read_id in self.aligned_segments:
-        #     print(''.join(self.aligned_segments[read_id]))
-        #     # print(''.join(self.cigars[read_id]))
-        #     # print()
-
         self.add_insertion_padding()
 
-        # for read_id in self.aligned_segments:
-        #     print(''.join(self.aligned_segments[read_id]))
-        #     # print(''.join(self.cigars[read_id]))
-        #     # print()
+        for read_id in self.aligned_segments:
+            print(''.join(self.aligned_segments[read_id]))
+            print(''.join(self.cigars[read_id]))
 
         return self.aligned_segments
 
@@ -266,7 +271,7 @@ class PileupGenerator:
             # update end position
             if in_right_bound:
                 self.read_end_indices[read_id] = index
-                self.read_alignment_ends[read_id] = i
+                # self.read_alignment_ends[read_id] = i
             else:
                 read_complete = True
                 break

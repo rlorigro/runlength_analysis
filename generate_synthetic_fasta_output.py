@@ -6,31 +6,56 @@ import csv
 import os
 
 
-def read_weibull_params(weibull_params_path="data/weibull_parameters_by_mode.csv"):
-    modal_parameters = defaultdict(list)
-    with open(weibull_params_path, "r") as file:
-        reader = csv.reader(file)
+def complement_sequence(sequence, reverse=True):
+    """
+    Complement a sequence of bases in list form (NOT string)
+    :param sequence: list of strings (bases)
+    :return:
+    """
+    sequence_complement = list()
 
-        for line in reader:
-            mode = int(line[0])
-            scale = float(line[1])
-            shape = float(line[2])
+    if reverse:
+        for base in reversed(sequence):
+            sequence_complement.append(complement_base(base))
+    else:
+        for base in sequence:
+            sequence_complement.append(complement_base(base))
 
-            # print(mode, scale, shape)
+    return sequence_complement
 
-            modal_parameters[mode].append([scale,shape])
 
-    return modal_parameters
+def complement_base(base):
+    """
+    Complement a base
+    :param base:
+    :return:
+    """
+    if base == "A":
+        complement = "T"
+
+    elif base == "T":
+        complement = "A"
+
+    elif base == "C":
+        complement = "G"
+
+    elif base == "G":
+        complement = "C"
+
+    else:
+        exit("ERROR: invalid base encountered in complement fn:", base)
+
+    return complement
 
 
 def main(output_dir="data/"):
-    filename_prefix = "synthetic_runnie_test_" + FileManager.get_datetime_string()
+    filename_prefix = "synthetic_runlength_test_" + FileManager.get_datetime_string()
     runlength_reference_path = os.path.join(output_dir, filename_prefix + "_ref.fasta")
-    runnie_output_path = os.path.join(output_dir, filename_prefix + "_runnie.out")
+    runlength_reads_path = os.path.join(output_dir, filename_prefix + "_reads.fasta")
 
-    modal_parameters = read_weibull_params()
+    reverse_complement = True
 
-    n_repeats = 30
+    n_repeats = 12
     coverage = 12
 
     ref_max_runlength = 8
@@ -69,32 +94,30 @@ def main(output_dir="data/"):
     ref_sequence = "".join(ref_sequence)
 
     for c in range(coverage):
-        read_output_lines.append("# synthetic_read_%d"%c)
+        read_output_lines.append(">synthetic_read_%d"%c)
+        sequence = list()
         for i in range(len(ref_lengths)):
             runlength = ref_lengths[i]
             base = ref_bases[i]
 
-            scale,shape = random.choice(modal_parameters[runlength])
+            sequence.extend([base]*runlength)
 
-            hex_scale = scale.hex()
-            hex_shape = shape.hex()
+        sequence = "".join(sequence)
+        read_output_lines.append(sequence)
 
-            line = [base, hex_shape, hex_scale]
-            line = list(map(str,line))
-            line = "\t".join(line)
-            read_output_lines.append(line)
-
-            print(line)
-
-    print(ref_sequence)
+        if reverse_complement:
+            read_output_lines.append(">synthetic_read_reverse_%d" % c)
+            sequence = complement_sequence(sequence=sequence, reverse=True)
+            sequence = "".join(sequence)
+            read_output_lines.append(sequence)
 
     print("saving file:", runlength_reference_path)
     with open(runlength_reference_path, "w") as file:
         file.write(">"+ref_sequence_name+"\n")
         file.write(ref_sequence + "\n")
 
-    print("saving file:", runnie_output_path)
-    with open(runnie_output_path, "w") as file:
+    print("saving file:", runlength_reads_path)
+    with open(runlength_reads_path, "w") as file:
         for line in read_output_lines:
             file.write(line + "\n")
 

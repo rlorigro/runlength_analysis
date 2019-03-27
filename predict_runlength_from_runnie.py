@@ -1,8 +1,8 @@
 from measure_runlength_distribution_from_runnie_sequence import runlength_encode_fasta, align_as_RLE
 from modules.WeibullRunlengthClassifier import RunlengthClassifier as WeibullRunlengthClassifier
 from modules.RunlengthClassifier import RunlengthClassifier
-from modules.RunlengthPileupGenerator import INSERT_CHAR, DELETE_CHAR
-from modules.RunlengthPileupGenerator import PileupGenerator
+from modules.RunniePileupGenerator import INSERT_CHAR, DELETE_CHAR
+from modules.RunniePileupGenerator import PileupGenerator
 from handlers.RunlengthHandler_v2 import RunlengthHandler
 from handlers.FastaHandler import FastaHandler
 from handlers.FileManager import FileManager
@@ -226,8 +226,8 @@ def get_encoding(character):
 
 def get_aligned_segments(fasta_handler, bam_handler, chromosome_name, pileup_start, pileup_end, read_data, runlength_ref_sequences):
     """
-    Get read segments from a pair of coordinates given that each read has an aligned match at the start and end
-    coordinate
+    Get aligned read segments from a pair of coordinates given that each read has an aligned match at the start and end
+    coordinate.
     :param fasta_handler:
     :param bam_handler:
     :param chromosome_name:
@@ -253,9 +253,9 @@ def get_aligned_segments(fasta_handler, bam_handler, chromosome_name, pileup_sta
                                       read_data=read_data,
                                       reads=reads)
 
-    sequence_dictionary = segment_grabber.get_read_segments()
+    sequence_data = segment_grabber.get_aligned_read_segments()
 
-    return sequence_dictionary
+    return sequence_data
 
 
 def chunk_chromosome_coordinates(chromosome_length, chunk_size):
@@ -311,8 +311,8 @@ def main():
 
     assembly_vs_ref_bam_path = align_as_RLE(runlength_reference_path=runlength_ref_fasta_path,
                                             runlength_ref_sequences=runlength_ref_sequences,
-                                            runlength_assembly_path=runlength_assembly_fasta_path,
-                                            runlength_assembly_sequences=read_data,
+                                            runlength_read_path=runlength_assembly_fasta_path,
+                                            runlength_read_sequences=read_data,
                                             output_dir=output_dir)
 
     bam_handler = BamHandler(assembly_vs_ref_bam_path)

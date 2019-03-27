@@ -37,9 +37,13 @@ class PileupGenerator:
         self.read_alignment_ends = dict()
 
         self.sequences = defaultdict(list)
+        self.scales = defaultdict(list)
+        self.shapes = defaultdict(list)
+
         self.aligned_sequences = defaultdict(list)
         self.aligned_scales = defaultdict(list)
         self.aligned_shapes = defaultdict(list)
+
         self.qualities = defaultdict(list)
         self.cigars = defaultdict(list)
         self.reversal_statuses = dict()
@@ -53,6 +57,19 @@ class PileupGenerator:
         # print(self.end_position)
 
     def get_read_segments(self):
+        for r,read in enumerate(self.reads):
+            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
+                    and read.is_supplementary is False and read.is_unmapped is False and read.is_qcfail is False:
+
+                if read.is_read2:
+                    sys.stderr.write("WARNING: 'is_read2' flag found 'True' for read: %s" % read.query_name)
+                    continue
+
+                self.get_aligned_segment_from_read(read)
+
+        return self.sequences, self.scales, self.shapes
+
+    def get_aligned_read_segments(self):
         for r,read in enumerate(self.reads):
             if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
                     and read.is_supplementary is False and read.is_unmapped is False and read.is_qcfail is False:
@@ -161,10 +178,15 @@ class PileupGenerator:
         """
         read_id = read.query_name
 
-        self.reversal_statuses[read_id] = read.is_reverse
+        reversal = read.is_reverse
+        self.reversal_statuses[read_id] = reversal
 
         read_scales = self.read_data[read_id].scales
         read_shapes = self.read_data[read_id].shapes
+
+        if reversal:
+            read_scales = list(reversed(read_scales))
+            read_shapes = list(reversed(read_shapes))
 
         read_alignment_start = read.reference_start
         # read_alignment_stop = self.get_read_stop_position(read)
@@ -229,9 +251,13 @@ class PileupGenerator:
                     # to simulate Paolo Carnevali's data, all reads should span the full region, match on start and end pos.
                     if segment_alignment_start == self.start_position and segment_alignment_end == self.end_position:
                         sequence = read_sequence[start_index:end_index + 1]
+                        scales = read_scales[start_index:end_index + 1]
+                        shapes = read_shapes[start_index:end_index + 1]
 
                         if len(sequence) < SEQUENCE_LENGTH_CUTOFF_FACTOR*self.window_size:
                             self.sequences[read_id] = sequence
+                            self.scales[read_id] = scales
+                            self.shapes[read_id] = shapes
 
                     else:
                         # Forget reads that end/start in the middle of the window
@@ -322,7 +348,7 @@ class PileupGenerator:
             # update end position
             if in_right_bound:
                 self.read_end_indices[read_id] = index
-                self.read_alignment_ends[read_id] = i
+                # self.read_alignment_ends[read_id] = i
             else:
                 read_complete = True
                 break

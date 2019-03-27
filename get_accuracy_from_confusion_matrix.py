@@ -71,14 +71,18 @@ def load_base_probability_matrix_from_csv(path):
 
 
 def main():
-    csv_paths = ["/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_v1/frequency_matrices_2019_3_8_15_10_19_914103.csv",
-                 "/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_v2/frequency_matrices_2019_3_8_15_0_34_372610.csv",
-                 "/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_vMode/frequency_matrices_2019_3_12_13_1_22_387365.csv"]
+    csv_paths = ["/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_NO_BAYES/frequency_matrices_2019_3_23_15_44_37_588211.csv",
+                 "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_BAYES/frequency_matrices_2019_3_23_15_46_4_268313.csv"]
+
+    # csv_paths = ["/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_v1/frequency_matrices_2019_3_8_15_10_19_914103.csv",
+    #              "/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_v2/frequency_matrices_2019_3_8_15_0_34_372610.csv",
+    #              "/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_vMode/frequency_matrices_2019_3_12_13_1_22_387365.csv"]
 
     # csv_paths = ["/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_vMode_0_ONLY/frequency_matrices_2019_3_12_12_25_46_220680.csv",
     #              "/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_v2_0_ONLY/frequency_matrices_2019_3_12_12_24_6_369476.csv"]
 
-    names = ["mean (v1)", "mean (v2)", "mode"]
+    # names = ["mean (v1)", "mean (v2)", "mode"]
+    names = ["No Bayes", "Bayes"]
 
     accuracies = dict()
     weighted_distances = dict()
