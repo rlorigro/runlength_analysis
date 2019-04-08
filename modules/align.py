@@ -3,7 +3,7 @@ from multiprocessing import cpu_count
 from subprocess import run, PIPE
 
 
-def align_minimap(ref_sequence_path, reads_sequence_path, k=15, max_threads=None, output_dir=None):
+def align_minimap(ref_sequence_path, reads_sequence_path, k=15, preset="map-ont", max_threads=None, output_dir=None):
     """
     Given a reference file and reads file align using minimap, generating a
     :param ref_sequence_path:
@@ -33,7 +33,7 @@ def align_minimap(ref_sequence_path, reads_sequence_path, k=15, max_threads=None
     output_filename = output_filename_prefix + ".sam"
     output_file_path = join(output_dir, output_filename)
 
-    arguments = ["minimap2", "-a", "-t", max_threads, "-x", "map-ont", "-k", str(k), ref_sequence_path, reads_sequence_path]
+    arguments = ["minimap2", "-a", "-t", max_threads, "-x", preset, "-k", str(k), ref_sequence_path, reads_sequence_path]
 
     print("\nRUNNING: ", " ".join(arguments))
 

@@ -62,6 +62,8 @@ def main(output_dir="data/"):
 
     base_pool = ["A", "T", "G", "C"]
 
+    base_length_offsets = {"A":0, "T":1, "G":2, "C":3}
+
     ref_sequence = list()
 
     ref_lengths = list()
@@ -97,8 +99,8 @@ def main(output_dir="data/"):
         read_output_lines.append(">synthetic_read_%d"%c)
         sequence = list()
         for i in range(len(ref_lengths)):
-            runlength = ref_lengths[i]
             base = ref_bases[i]
+            runlength = ref_lengths[i] + base_length_offsets[base]
 
             sequence.extend([base]*runlength)
 

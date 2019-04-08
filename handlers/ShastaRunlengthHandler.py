@@ -37,7 +37,7 @@ class ShastaRunlengthHandler:
         self.pileup_data = list()
 
     def get_name_from_file_path(self, file_path):
-        name = file_path.split(".")[0]
+        name = os.path.basename(file_path).split(".")[0]
 
         return name
 
@@ -76,7 +76,7 @@ class ShastaRunlengthHandler:
             base = item[0][0]
             length = int(item[0][1:-1])
             reversal = self.parse_strand(item[0][-1])
-            count = int(item[1][0])
+            count = int(item[1])
 
             pileup.append(ReadData(base=base, length=length, reversal=reversal, count=count))
 

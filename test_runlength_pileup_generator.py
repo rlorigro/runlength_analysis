@@ -1,4 +1,4 @@
-from measure_runlength_distribution_from_runnie_sequence import runlength_encode_fasta, align_as_RLE
+from measure_runlength_distribution_from_runnie import runlength_encode_fasta, align_as_RLE
 from modules.RunniePileupGenerator import INSERT_CHAR, DELETE_CHAR
 from modules.RunniePileupGenerator import PileupGenerator
 from handlers.RunlengthHandler_v2 import RunlengthHandler

@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(sys.path[0]))
-from measure_runlength_modal_distribution_from_runnie_sequence import MAX_RUNLENGTH
+from measure_runlength_modal_distribution_from_runnie import MAX_RUNLENGTH
 from handlers.FileManager import FileManager
 from matplotlib import pyplot
 import numpy

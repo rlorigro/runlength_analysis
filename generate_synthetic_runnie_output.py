@@ -70,11 +70,19 @@ def main(output_dir="data/"):
 
     for c in range(coverage):
         read_output_lines.append("# synthetic_read_%d"%c)
+        sequence = list()
+        scales = list()
+        shapes = list()
+
         for i in range(len(ref_lengths)):
             runlength = ref_lengths[i]
             base = ref_bases[i]
 
             scale,shape = random.choice(modal_parameters[runlength])
+
+            sequence.append(base)
+            scales.append(scale)
+            shapes.append(shape)
 
             hex_scale = scale.hex()
             hex_shape = shape.hex()

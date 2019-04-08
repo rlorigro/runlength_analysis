@@ -173,21 +173,34 @@ class PileupGenerator:
         :return:
         """
         read_id = read.query_name
+        cigar_tuples = read.cigartuples
 
         reversal = read.is_reverse
         self.reversal_statuses[read_id] = reversal
 
         read_lengths = self.read_data[read_id][LENGTHS]
+        read_sequence = self.read_data[read_id][SEQUENCE]
 
         if reversal:
             read_lengths = list(reversed(read_lengths))
 
-        read_alignment_start = read.reference_start
-        # read_alignment_stop = self.get_read_stop_position(read)
+        # Check for hardclips
+        n_initial_hard_clipped_bases = 0
+        if cigar_tuples[0][0] == 5:
+            n_initial_hard_clipped_bases = cigar_tuples[0][1]
 
-        cigar_tuples = read.cigartuples
-        read_sequence = read.query_sequence
-        # read_quality = read.query_qualities
+        n_final_hard_clipped_bases = 0
+        if cigar_tuples[-1][0] == 5:
+            n_final_hard_clipped_bases = cigar_tuples[-1][1]
+
+        clipped_start = n_initial_hard_clipped_bases
+        clipped_stop = len(read_sequence) - n_final_hard_clipped_bases
+
+        # Apply hardclip to sequence data
+        read_sequence = read_sequence[clipped_start:clipped_stop]
+        read_lengths = read_lengths[clipped_start:clipped_stop]
+
+        read_alignment_start = read.reference_start
 
         # read_index: index of read sequence
         # ref_index: index of reference sequence

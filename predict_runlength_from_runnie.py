@@ -1,4 +1,4 @@
-from measure_runlength_distribution_from_runnie_sequence import runlength_encode_fasta, align_as_RLE
+from measure_runlength_distribution_from_runnie import runlength_encode_fasta, align_as_RLE
 from modules.WeibullRunlengthClassifier import RunlengthClassifier as WeibullRunlengthClassifier
 from modules.RunlengthClassifier import RunlengthClassifier
 from modules.RunniePileupGenerator import INSERT_CHAR, DELETE_CHAR
@@ -277,12 +277,14 @@ def chunk_chromosome_coordinates(chromosome_length, chunk_size):
 def main():
     # ref_fasta_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_ref.fasta"
     # runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_runnie.out"
-    # matrix_path = "/home/ryan/code/runnie_parser/output/runlength_matrix_from_assembly_contigs_2019_3_19_13_29_14_657613/probability_matrices_2019_3_19_13_29_19_362916.csv"
+    matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_3_28_9_43_15_74756/probability_matrices_2019_3_28_9_43_15_258169.csv"
 
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    # runlength_path = "/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_runnie_0.out"
-    runlength_path = "/home/ryan/data/Nanopore/ecoli/runnie/out/test/rad2_pass_runnie_4_5_6_7.out"
-    matrix_path = "/home/ryan/code/runnie_parser/output/runlength_matrix_from_runnie_sequence_0_1_2_3_TRAIN_ecoli/probability_matrices_2019_3_19_15_33_44_765752.csv"
+    runlength_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/runnie_subset_test_60x_10kb.out"
+
+    # WG ecoli 60x
+    # matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_ecoli_wg_60x_10kb_train/probability_matrices_2019_3_27_16_48_54_490198.csv"
+    matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_5_11_16_8_642422/probability_matrices_2019_4_5_11_20_5_66642.csv"
 
     output_parent_dir = "output/"
     output_dir = "runlength_matrix_from_runnie_output_" + FileManager.get_datetime_string()
@@ -416,16 +418,21 @@ def main():
 
     accuracy = get_accuracy_from_confusion_matrix(total_confusion)
 
-    print(accuracy)
+    print("Modal: ", accuracy)
 
     accuracy = get_accuracy_from_confusion_matrix(total_confusion_weibull)
 
-    print(accuracy)
+    print("Full: ", accuracy)
 
     plot_filename = "confusion.png"
     plot_path = os.path.join(output_dir, plot_filename)
 
     figure = pyplot.figure()
+
+    axes = pyplot.axes()
+    axes.set_xlabel("Predicted")
+    axes.set_ylabel("True")
+
     pyplot.imshow(numpy.log10(total_confusion))
     pyplot.show()
     figure.savefig(plot_path)
@@ -436,6 +443,11 @@ def main():
     plot_path = os.path.join(output_dir, plot_filename)
 
     figure = pyplot.figure()
+
+    axes = pyplot.axes()
+    axes.set_xlabel("Predicted")
+    axes.set_ylabel("True")
+
     pyplot.imshow(numpy.log10(total_confusion_weibull))
     pyplot.show()
     figure.savefig(plot_path)

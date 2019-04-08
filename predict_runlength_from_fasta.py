@@ -105,48 +105,7 @@ def mode(x):
     return mode
 
 
-def get_consensus_from_weibull_pileup_encoding(length_classifier, sequence_encoding, scale_encoding, shape_encoding, reversal_encoding):
-    # print(sequence_encoding)
-    # print(length_encoding)
-
-    window_length = sequence_encoding.shape[1]
-
-    consensus_sequence = list()
-    consensus_lengths = list()
-
-    for i in range(window_length):
-        sequence_observations = sequence_encoding[:,i]
-        scale_observations = scale_encoding[:,i]
-        shape_observations = shape_encoding[:,i]
-
-        base_consensus = mode(sequence_observations)
-
-        # print("sequence_observations\t", sequence_observations)
-        # print("scale_observations\t", scale_observations)
-        # print("shape_observations\t", shape_observations)
-        # print("reversal_encoding\t", reversal_encoding)
-        # print("base consensus\t\t", base_consensus)
-
-        if base_consensus == BASE_TO_INDEX["-"]:
-            length_consensus = 0
-
-        else:
-            normalized_y_log_likelihoods, length_consensus = length_classifier.predict(x_scales=scale_observations,
-                                                                                       x_shapes=shape_observations,
-                                                                                       character_index=base_consensus,
-                                                                                       reversal=reversal_encoding)
-
-        consensus_sequence.append(base_consensus)
-        consensus_lengths.append(length_consensus)
-
-        # print("length normalized_y_log_likelihoods\n", 10**normalized_y_log_likelihoods[:10])
-        # print("length consensus\t", length_consensus)
-        # print()
-
-    return consensus_sequence, consensus_lengths
-
-
-def get_consensus_from_modal_pileup_encoding(length_classifier, sequence_encoding, length_encoding, reversal_encoding):
+def get_consensus_from_runlength_pileup_encoding(length_classifier, sequence_encoding, length_encoding, reversal_encoding, bayesian=True):
     # print(sequence_encoding)
     # print(length_encoding)
 
@@ -170,9 +129,12 @@ def get_consensus_from_modal_pileup_encoding(length_classifier, sequence_encodin
             length_consensus = 0
 
         else:
-            normalized_y_log_likelihoods, length_consensus = length_classifier.predict(x=length_observations,
-                                                                                       character_index=base_consensus,
-                                                                                       reversal=reversal_encoding)
+            if bayesian:
+                normalized_y_log_likelihoods, length_consensus = length_classifier.predict(x=length_observations,
+                                                                                           character_index=base_consensus,
+                                                                                           reversal=reversal_encoding)
+            else:
+                length_consensus = int(mode(length_observations))
 
         consensus_sequence.append(base_consensus)
         consensus_lengths.append(length_consensus)
@@ -276,7 +238,7 @@ def main():
 
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
     read_fasta_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/sequence_subset_test_60x_10kb.fasta"
-    matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_guppy_fasta_wg_60x_10kb/probability_matrices_2019_3_27_13_21_46_704275.csv"
+    matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_sequence_2019_4_5_15_29_28_403950/probability_matrices_2019_4_5_15_35_57_920301.csv"
 
     output_parent_dir = "output/"
     output_dir = "runlength_matrix_from_sequence_" + FileManager.get_datetime_string()
@@ -307,9 +269,11 @@ def main():
     chromosome_name = contig_names[0]
     chromosome_length = fasta_handler.get_chr_sequence_length(chromosome_name)
 
-    windows = chunk_chromosome_coordinates(chromosome_length=chromosome_length, chunk_size=100)
+    windows = chunk_chromosome_coordinates(chromosome_length=chromosome_length, chunk_size=1000)
 
+    # Initialize empty confusion matrices
     total_confusion = get_runlength_confusion([],[],10)
+    total_modal_confusion = get_runlength_confusion([],[],10)
 
     length_classifier = RunlengthClassifier(matrix_path)
 
@@ -342,17 +306,6 @@ def main():
             length_encoding.append(aligned_lengths[read_id])
             reversal_encoding.append(reversal_statuses[read_id])
 
-        # print(len(length_encoding), len(length_encoding[0]))
-        # print(type(length_encoding), type(length_encoding[0]), type(length_encoding[0][0]))
-        # for row in length_encoding:
-        #     print(row)
-        #     print("".join(list(map(str,row))))
-
-        # print(len(sequence_encoding), len(sequence_encoding[0]))
-        # print(type(sequence_encoding), type(sequence_encoding[0]), type(sequence_encoding[0][0]))
-        # for row in sequence_encoding:
-        #     print(row)
-
         ref_sequence_encoding = [list(map(get_encoding, aligned_ref_sequence))]
         ref_lengths_encoding = [aligned_ref_lengths]
 
@@ -373,10 +326,17 @@ def main():
         #                       ref_lengths=ref_length_encoding)
 
         consensus_sequence, consensus_lengths = \
-            get_consensus_from_modal_pileup_encoding(length_classifier=length_classifier,
-                                                     sequence_encoding=sequence_encoding,
-                                                     length_encoding=length_encoding,
-                                                     reversal_encoding=reversal_encoding)
+            get_consensus_from_runlength_pileup_encoding(length_classifier=length_classifier,
+                                                         sequence_encoding=sequence_encoding,
+                                                         length_encoding=length_encoding,
+                                                         reversal_encoding=reversal_encoding)
+
+        modal_consensus_sequence, modal_consensus_lengths = \
+            get_consensus_from_runlength_pileup_encoding(length_classifier=length_classifier,
+                                                         sequence_encoding=sequence_encoding,
+                                                         length_encoding=length_encoding,
+                                                         reversal_encoding=reversal_encoding,
+                                                         bayesian=False)
 
         print()
         print("PREDICTED\t",consensus_lengths[:10])
@@ -388,6 +348,12 @@ def main():
 
         total_confusion += confusion
 
+        modal_confusion = get_runlength_confusion(true_lengths=aligned_ref_lengths,
+                                                  predicted_lengths=modal_consensus_lengths,
+                                                  max_length=10)
+
+        total_modal_confusion += modal_confusion
+
         # except Exception as e:
         #     print(e)
         #     continue
@@ -395,13 +361,35 @@ def main():
 
     accuracy = get_accuracy_from_confusion_matrix(total_confusion)
 
-    print(accuracy)
+    print("Bayes:", accuracy)
+
+    accuracy = get_accuracy_from_confusion_matrix(total_modal_confusion)
+
+    print("No Bayes", accuracy)
 
     plot_filename = "confusion.png"
     plot_path = os.path.join(output_dir, plot_filename)
 
     figure = pyplot.figure()
+    axes = pyplot.axes()
+    axes.set_xlabel("Predicted")
+    axes.set_ylabel("True")
+
     pyplot.imshow(numpy.log10(total_confusion))
+    pyplot.show()
+    figure.savefig(plot_path)
+
+    pyplot.close()
+
+    plot_filename = "modal_confusion.png"
+    plot_path = os.path.join(output_dir, plot_filename)
+
+    figure = pyplot.figure()
+    axes = pyplot.axes()
+    axes.set_xlabel("Predicted")
+    axes.set_ylabel("True")
+
+    pyplot.imshow(numpy.log10(total_modal_confusion))
     pyplot.show()
     figure.savefig(plot_path)
 
