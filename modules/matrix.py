@@ -1,9 +1,17 @@
 from handlers.FileManager import FileManager
 from matplotlib import pyplot, colors
+import matplotlib
+import platform
 import numpy
 import sys
 import os
 
+if os.environ.get("DISPLAY", "") == "":
+   print("no display found. Using non-interactive Agg backend")
+   matplotlib.use("Agg")
+
+if platform.system() == "Darwin":
+   matplotlib.use("macosx")
 
 A,C,G,T = 0,1,2,3
 
