@@ -3,7 +3,7 @@ import os
 sys.path.append(os.path.dirname(sys.path[0]))
 from measure_runlength_modal_distribution_from_runnie import MAX_RUNLENGTH
 from discrete_weibull_distribution import evaluate_discrete_weibull
-from handlers.FileManager import FileManager
+from modules.matrix import normalize
 from matplotlib import pyplot
 import numpy
 
@@ -28,6 +28,45 @@ BASE_TO_INDEX = {"A": 0,
 INDEX_TO_BASE = ["A", "C", "G", "T"]
 
 
+def plot_matrices(matrix, cutoff=12):
+    figure, axes = pyplot.subplots(nrows=2, ncols=2)
+    figure.set_size_inches(8, 8)
+
+    matrix_A = matrix[0, :cutoff, :cutoff]
+    axes[0][0].imshow(matrix_A)
+    axes[0][0].set_title(INDEX_TO_BASE[0])
+
+    matrix_T = matrix[3, :cutoff, :cutoff]
+
+    axes[1][0].imshow(matrix_T)
+    axes[1][0].set_title(INDEX_TO_BASE[3])
+
+    matrix_G = matrix[2, :cutoff, :cutoff]
+
+    axes[0][1].imshow(matrix_G)
+    axes[0][1].set_title(INDEX_TO_BASE[2])
+
+    matrix_C = matrix[1, :cutoff, :cutoff]
+
+    axes[1][1].imshow(matrix_C)
+    axes[1][1].set_title(INDEX_TO_BASE[1])
+
+    axes[1][1].set_xlabel("Observed length")
+    axes[1][0].set_xlabel("Observed length")
+    axes[1][0].set_ylabel("True length")
+    axes[0][0].set_ylabel("True length")
+
+    axes[1][1].set_yticks(numpy.arange(0, cutoff, 2))
+    axes[1][0].set_yticks(numpy.arange(0, cutoff, 2))
+    axes[0][0].set_yticks(numpy.arange(0, cutoff, 2))
+    axes[0][1].set_yticks(numpy.arange(0, cutoff, 2))
+
+    axes[1][1].set_xticks(numpy.arange(0, cutoff, 2))
+    axes[1][0].set_xticks(numpy.arange(0, cutoff, 2))
+    axes[0][0].set_xticks(numpy.arange(0, cutoff, 2))
+    axes[0][1].set_xticks(numpy.arange(0, cutoff, 2))
+
+
 class RunlengthClassifier:
     """
     Calculate the probability of true runlength given the following:
@@ -35,12 +74,17 @@ class RunlengthClassifier:
         2) a matrix of dimensions [true_runlength, observed_runlength] containing raw true/observed frequencies
     """
 
-    def __init__(self, path, log_scale=True):
-        self.log_scale = log_scale
-
-        self.pseudocount = 15
+    def __init__(self, path, normalize_matrix=True, pseudocount=1):
+        self.pseudocount = pseudocount
 
         self.probability_matrices = self.load_base_probability_matrix_from_csv(path)
+
+        if normalize_matrix:
+            print(self.probability_matrices.shape)
+            for i in range(4):
+                self.probability_matrices[i,:,:] = normalize(self.probability_matrices[i,:,:], pseudocount=self.pseudocount)
+
+        plot_matrices(self.probability_matrices, cutoff=20)
 
         # self.y_maxes = [matrix.shape[0] for matrix in self.probability_matrices[0]]
         # self.x_maxes = [matrix.shape[1] for matrix in self.probability_matrices[0]]
@@ -57,7 +101,7 @@ class RunlengthClassifier:
         pyplot.close()
 
     def load_base_probability_matrix_from_csv(self, path):
-        matrices = numpy.zeros([4, MAX_RUNLENGTH+1, MAX_RUNLENGTH+1])
+        matrices = numpy.zeros([4, MAX_RUNLENGTH+1, MAX_RUNLENGTH+1], dtype=numpy.float)
         base_index = None
         row_index = 0
 

@@ -58,7 +58,7 @@ def get_runlength_confusion(true_lengths, predicted_lengths, max_length=50):
     return confusion
 
 
-def plot_runlength_pileup(sequences, scales, shapes, modes, ref_sequence, ref_lengths):
+def plot_runlength_pileup(sequences, scales, shapes, modes, ref_sequence, predicted_sequence, ref_lengths, predicted_lengths):
     """
     Given 2d numpy float matrices, make an organized plot of pileup data
     :param sequences:
@@ -69,21 +69,25 @@ def plot_runlength_pileup(sequences, scales, shapes, modes, ref_sequence, ref_le
     :param ref_lengths:
     :return:
     """
-    figure, axes = pyplot.subplots(nrows=6, sharex=True)
+    figure, axes = pyplot.subplots(nrows=8, sharex=True)
 
     axes[0].imshow(ref_sequence)
-    axes[1].imshow(sequences)
-    axes[2].imshow(scales)
-    axes[3].imshow(shapes)
-    axes[4].imshow(ref_lengths)
-    axes[5].imshow(modes)
+    axes[1].imshow(predicted_sequence)
+    axes[2].imshow(sequences)
+    axes[3].imshow(scales)
+    axes[4].imshow(shapes)
+    axes[5].imshow(ref_lengths)
+    axes[6].imshow(predicted_lengths)
+    axes[7].imshow(modes)
 
     axes[0].set_ylabel("Ref Nucleotide")
-    axes[1].set_ylabel("Read Nucleotide")
-    axes[2].set_ylabel("Scale (alpha)")
-    axes[3].set_ylabel("Shape (beta)")
-    axes[4].set_ylabel("Ref length")
-    axes[5].set_ylabel("Mode")
+    axes[1].set_ylabel("Predicted nt")
+    axes[2].set_ylabel("Read Nucleotide")
+    axes[3].set_ylabel("Scale (alpha)")
+    axes[4].set_ylabel("Shape (beta)")
+    axes[5].set_ylabel("Ref length")
+    axes[6].set_ylabel("Predicted length")
+    axes[7].set_ylabel("Mode")
 
     pyplot.show()
     pyplot.close()
@@ -141,6 +145,11 @@ def get_consensus_from_weibull_pileup_encoding(length_classifier, sequence_encod
                                                                                        character_index=base_consensus,
                                                                                        reversal=reversal_encoding)
 
+        # if length_consensus == 1:
+        #     print(base_consensus)
+        #     print(scale_observations)
+        #     print(shape_observations)
+
         consensus_sequence.append(base_consensus)
         consensus_lengths.append(length_consensus)
 
@@ -173,7 +182,6 @@ def get_consensus_from_modal_pileup_encoding(length_classifier, sequence_encodin
 
         if base_consensus == BASE_TO_INDEX["-"]:
             length_consensus = 0
-
         else:
             normalized_y_log_likelihoods, length_consensus = length_classifier.predict(x=length_observations,
                                                                                        character_index=base_consensus,
@@ -182,6 +190,10 @@ def get_consensus_from_modal_pileup_encoding(length_classifier, sequence_encodin
         consensus_sequence.append(base_consensus)
         consensus_lengths.append(length_consensus)
 
+        # if length_consensus == 0:
+        #     print()
+        #     print(base_consensus, INDEX_TO_BASE[base_consensus])
+        #     print(length_observations)
         # print("length normalized_y_log_likelihoods\n", 10**normalized_y_log_likelihoods[:10])
         # print("length consensus\t", length_consensus)
         # print()
@@ -277,7 +289,9 @@ def chunk_chromosome_coordinates(chromosome_length, chunk_size):
 def main():
     # ref_fasta_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_ref.fasta"
     # runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_runnie.out"
-    matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_3_28_9_43_15_74756/probability_matrices_2019_3_28_9_43_15_258169.csv"
+
+    # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runnie_test_2019_4_8_14_33_30_333396_ref.fasta"
+    # runlength_path = "/home/ryan/code/runlength_analysis/data/synthetic_runnie_test_2019_4_8_14_33_30_333396_runnie.out"
 
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
     runlength_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/runnie_subset_test_60x_10kb.out"
@@ -286,8 +300,11 @@ def main():
     # matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_ecoli_wg_60x_10kb_train/probability_matrices_2019_3_27_16_48_54_490198.csv"
     matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_5_11_16_8_642422/probability_matrices_2019_4_5_11_20_5_66642.csv"
 
+    # raw_matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_8_17_7_56_112544/frequency_matrices_2019_4_8_17_7_56_273747.csv"
+    raw_matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_5_11_16_8_642422/frequency_matrices_2019_4_5_11_20_5_62682.csv"
+
     output_parent_dir = "output/"
-    output_dir = "runlength_matrix_from_runnie_output_" + FileManager.get_datetime_string()
+    output_dir = "runlength_prediction_from_runnie_output_" + FileManager.get_datetime_string()
     output_dir = os.path.join(output_parent_dir, output_dir)
     FileManager.ensure_directory_exists(output_dir)
 
@@ -330,7 +347,8 @@ def main():
     total_confusion_weibull = get_runlength_confusion([],[],10)
 
     length_classifier = RunlengthClassifier(matrix_path)
-    length_classifier_weibull = WeibullRunlengthClassifier(matrix_path)
+    # length_classifier_weibull = WeibullRunlengthClassifier(matrix_path)
+    length_classifier_weibull = WeibullRunlengthClassifier(raw_matrix_path, normalize_matrix=True, pseudocount=0.05)
 
     print("reading BAM")
     for pileup_start, pileup_end in windows[:10]:
@@ -355,9 +373,9 @@ def main():
             continue
 
         try:
-            # print("REF\t", "".join(aligned_ref_sequence))
+            print("REF\t", "".join(aligned_ref_sequence))
             for read_id in aligned_sequences.keys():
-                # print("READ\t","".join(aligned_sequences[read_id]))
+                print("READ\t","".join(aligned_sequences[read_id]))
                 sequence_encoding.append(list(map(get_encoding, aligned_sequences[read_id])))
                 scale_encoding.append(aligned_scales[read_id])
                 shape_encoding.append(aligned_shapes[read_id])
@@ -375,14 +393,6 @@ def main():
             modes_encoding = numpy.atleast_2d(numpy.array(modes_encoding, dtype=numpy.int))
             reversal_encoding = numpy.array(reversal_encoding, dtype=numpy.bool)
 
-            # if pileup_end - pileup_start < 8:
-            #     plot_runlength_pileup(sequences=-sequence_encoding,
-            #                           scales=scale_encoding,
-            #                           shapes=shape_encoding,
-            #                           modes=modes_encoding,
-            #                           ref_sequence=-ref_sequence_encoding,
-            #                           ref_lengths=ref_length_encoding)
-
             consensus_sequence, consensus_lengths = \
                 get_consensus_from_modal_pileup_encoding(length_classifier=length_classifier,
                                                          sequence_encoding=sequence_encoding,
@@ -395,6 +405,15 @@ def main():
                                                            scale_encoding=scale_encoding,
                                                            shape_encoding=shape_encoding,
                                                            reversal_encoding=reversal_encoding)
+
+            plot_runlength_pileup(sequences=-sequence_encoding,
+                                  scales=scale_encoding,
+                                  shapes=shape_encoding,
+                                  modes=modes_encoding,
+                                  ref_sequence=-ref_sequence_encoding,
+                                  ref_lengths=ref_length_encoding,
+                                  predicted_sequence=-numpy.atleast_2d(numpy.array(weibull_consensus_sequence, dtype=numpy.int)),
+                                  predicted_lengths=numpy.atleast_2d(numpy.array(weibull_consensus_lengths, dtype=numpy.int)))
 
             print()
             print("PREDICTED\t",weibull_consensus_lengths[:10])

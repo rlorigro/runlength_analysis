@@ -41,8 +41,8 @@ class PileupGenerator:
 
     def get_read_segments(self):
         for r,read in enumerate(self.reads):
-            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
-                    and read.is_supplementary is False and read.is_unmapped is False and read.is_qcfail is False:
+            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and not read.is_secondary and not read.is_unmapped \
+                    and not read.is_qcfail and not read.is_supplementary:
 
                 if read.is_read2:
                     sys.stderr.write("WARNING: 'is_read2' flag found 'True' for read: %s" % read.query_name)
@@ -54,8 +54,8 @@ class PileupGenerator:
 
     def get_aligned_read_segments(self):
         for r,read in enumerate(self.reads):
-            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
-                    and read.is_supplementary is False and read.is_unmapped is False and read.is_qcfail is False:
+            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and not read.is_secondary and not read.is_unmapped \
+                    and not read.is_qcfail and not read.is_supplementary:
 
                 read.query_name = read.query_name + '_1' if read.is_read1 else read.query_name + '_2'
                 self.get_aligned_segment_from_read(read)
@@ -150,7 +150,7 @@ class PileupGenerator:
             cigar_code = cigar[0]
             length = cigar[1]
 
-            # get the sequence segments that are effected by this operation
+            # get the sequence segments that are affected by this operation
             # read_quality_segment = read_quality[read_index:read_index + length]
             read_sequence_segment = read_sequence[read_index:read_index + length]
 
@@ -162,7 +162,7 @@ class PileupGenerator:
                 continue
             found_valid_cigar = True
 
-            # send the cigar tuple to get attributes we got by this operation
+            # send the cigar tuple to get data from this segment
             ref_index_increment, read_index_increment, completion_status = \
                 self.parse_cigar_tuple(read_index=read_index,
                                        cigar_code=cigar_code,

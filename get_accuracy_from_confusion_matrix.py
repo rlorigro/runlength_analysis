@@ -180,10 +180,9 @@ def main():
     #              "/home/ryan/code/runlength_analysis/output/shasta_test/BAYES_NEW/frequency_matrices_2019_4_4_16_31_52_691889.csv",
     #              "/home/ryan/code/runlength_analysis/output/shasta_test/BAYES_STRANDED/frequency_matrices_2019_4_5_13_0_31_314707.csv"]
 
-    csv_paths = ["/home/ryan/code/runlength_analysis/output/shasta_test/BAYES_STRANDED/frequency_matrices_2019_4_5_13_0_31_314707.csv",
-                 # "/home/ryan/code/runlength_analysis/output/shasta_test/BAYES_STRANDED_NO_PRIOR/frequency_matrices_2019_4_5_13_24_29_183724.csv",
-                 "/home/ryan/code/runlength_analysis/output/shasta_test/BAYES_STRANDED_FIX/frequency_matrices_2019_4_5_13_49_19_144874.csv",
-                 "/home/ryan/code/runlength_analysis/output/shasta_test/BAYES_STRANDED_FIX_NO_PRIOR/frequency_matrices_2019_4_5_14_1_10_425455.csv"]
+    csv_paths = ["/home/ryan/code/runlength_analysis/output/shasta_test_new_ecoli/runlength_matrix_from_sequence_NO_BAYES/frequency_matrices_gi__2019_4_11_15_49_53_146110.csv",
+                 "/home/ryan/code/runlength_analysis/output/shasta_test_new_ecoli/runlength_matrix_from_sequence_OLD_BAYES/frequency_matrices_gi__2019_4_11_16_1_7_688358.csv",
+                 "/home/ryan/code/runlength_analysis/output/shasta_test_new_ecoli/runlength_matrix_from_sequence_NEW_BAYES/frequency_matrices_gi__2019_4_11_15_51_26_588545.csv"]
 
     # csv_paths = ["/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_v1/frequency_matrices_2019_3_8_15_10_19_914103.csv",
     #              "/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_v2/frequency_matrices_2019_3_8_15_0_34_372610.csv",
@@ -191,7 +190,7 @@ def main():
 
     # names = ["mean (v1)", "mean (v2)", "mode"]
     # names = ["No Bayes", "Bayes"]
-    names = ["No_Bayes", "Bayes_new", "Bayes_default"]
+    names = ["No_Bayes", "Old_Bayes", "New_Bayes"]
 
     accuracies = dict()
     weighted_distances = dict()

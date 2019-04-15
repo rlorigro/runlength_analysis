@@ -27,6 +27,7 @@ MATRIX_OBSERVED_LENGTH = 3
 SEQUENCE = 0
 LENGTHS = 1
 
+
 def update_frequency_matrix(observed_scale, observed_shape, true_base, true_length, alignment_reversal, matrix):
     # Did alignment reverse complement the sequence (via BAM) and ref (via pysam)? if so, revert to forward direction
     # if alignment_reversal:
@@ -218,10 +219,11 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
     :param fasta_handler: fasta_handler object that can retrieve substrings from the reference sequence
     :return:
     """
-    read_data = list()
-
-    for r,read in enumerate(reads):
+    r = 0
+    for read in reads:
         if read.mapping_quality > 0 and not read.is_secondary:
+            r += 1
+
             read_id = read.query_name
             ref_alignment_start = read.reference_start
             ref_alignment_stop = get_read_stop_position(read)
@@ -318,7 +320,7 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
                 read_index += read_index_increment
                 ref_index += ref_index_increment
 
-    return read_data
+    return r
 
 
 def generate_runlength_frequency_matrix(runlength_ref_sequence_path, assembly_vs_ref_bam_path,
@@ -345,14 +347,17 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, assembly_vs
 
         reads = bam_handler.get_reads(chromosome_name=chromosome_name, start=0, stop=chromosome_length)
 
-        parse_reads(chromosome_name=chromosome_name,
-                    fasta_handler=fasta_handler,
-                    reads=reads,
-                    complete_ref_runlengths=runlength_ref_sequences[chromosome_name][LENGTHS],
-                    runlength_read_data=runlength_read_data,
-                    matrix=matrix)
+        n_reads = parse_reads(chromosome_name=chromosome_name,
+                              fasta_handler=fasta_handler,
+                              reads=reads,
+                              complete_ref_runlengths=runlength_ref_sequences[chromosome_name][LENGTHS],
+                              runlength_read_data=runlength_read_data,
+                              matrix=matrix)
 
-        yield matrix
+        if n_reads > 0:
+            yield (chromosome_name, matrix)
+        else:
+            sys.stderr.write("No reads found for chromosome: %s\n" % chromosome_name)
 
 
 def runlength_encode(sequence):
@@ -382,15 +387,15 @@ def runlength_encode_fasta(fasta_sequence_path):
     runlength_sequences = dict()
 
     for contig_name in contig_names:
-        chromosome_length = fasta_handler.get_chr_sequence_length(contig_name)
-
-        sequence = fasta_handler.get_sequence(chromosome_name=contig_name, start=0, stop=chromosome_length)
+        sequence = fasta_handler.get_sequence(chromosome_name=contig_name, start=None, stop=None)
 
         bases, lengths = runlength_encode(sequence)
 
         runlength_sequences[contig_name] = (bases, lengths)
 
-        # print(contig_name, len(bases), len(lengths))
+        sys.stderr.write("\rRun length encoded %s            " % contig_name)
+
+    sys.stderr.write("\n")
 
     return runlength_sequences
 
@@ -418,11 +423,11 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
 
 
 def main():
-    # ref_fasta_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_ref.fasta"
-    # runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_runnie.out"
+    ref_fasta_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_ref.fasta"
+    runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_runnie.out"
 
-    ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    runlength_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/runnie_subset_train_60x_10kb.out"
+    # ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
+    # runlength_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/runnie_subset_train_60x_10kb.out"
 
     output_parent_dir = "output/"
     output_dir = "runlength_matrix_from_runnie_output_" + FileManager.get_datetime_string()
@@ -465,7 +470,7 @@ def main():
                                                                runlength_ref_sequences=runlength_ref_sequences,
                                                                runlength_read_data=read_data)
 
-    for matrix in chromosomal_matrices:
+    for chromosome_name, matrix in chromosomal_matrices:
         save_directional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                               frequency_matrices=matrix,
                                                               log_normalize=False,
@@ -483,12 +488,14 @@ def main():
         save_nondirectional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                                  frequency_matrices=nondirectional_matrix,
                                                                  log_normalize=False,
-                                                                 plot=False)
+                                                                 plot=False,
+                                                                 default_type=float)
 
         save_nondirectional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                                  frequency_matrices=nondirectional_matrix,
                                                                  log_normalize=True,
-                                                                 plot=False)
+                                                                 plot=False,
+                                                                 default_type=float)
 
         # zero_mask = (matrix == 0)
         # nonzero_mask = numpy.invert(zero_mask)

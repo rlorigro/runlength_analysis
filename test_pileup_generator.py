@@ -60,8 +60,11 @@ def get_aligned_segments(fasta_handler, bam_handler, chromosome_name, pileup_sta
 
 
 def main():
-    bam_file_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_sequence_2019_3_27_14_59_24_409353/sequence_subset_test_60x_10kb_rle_VS_refEcoli_rle.sorted.bam"
-    ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
+    # bam_file_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_sequence_2019_3_27_14_59_24_409353/sequence_subset_test_60x_10kb_rle_VS_refEcoli_rle.sorted.bam"
+    # ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
+
+    bam_file_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_8_17_33_14_191911/runnie_subset_test_60x_10kb_rle_VS_refEcoli_rle.sorted.bam"
+    ref_fasta_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_8_17_33_14_191911/refEcoli_rle.fasta"
     # -------------------------------------------------------------------------
 
     fasta_handler = FastaHandler(ref_fasta_path)
@@ -73,8 +76,8 @@ def main():
     bam_handler = BamHandler(bam_file_path)
     fasta_handler = FastaHandler(ref_fasta_path)
 
-    pileup_start = 300
-    pileup_end = 300+100      # add random variation here ?
+    pileup_start = 0
+    pileup_end = pileup_start+1000      # add random variation here ?
 
     aligned_segments = get_aligned_segments(fasta_handler=fasta_handler,
                                             bam_handler=bam_handler,

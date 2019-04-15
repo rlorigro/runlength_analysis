@@ -1,6 +1,7 @@
-from handlers.ShastaRunlengthHandler import ShastaRunlengthHandler
+from handlers.MarginpolishRunlengthHandler import MarginpolishRunlengthHandler
 from handlers.FastaHandler import FastaHandler
 from handlers.BamHandler import BamHandler
+from multiprocessing import Manager, Pool, cpu_count
 from modules.align import align_minimap
 from modules.matrix import *
 import numpy
@@ -29,7 +30,7 @@ LENGTHS = 1
 DEBUG_INDEX = 0
 
 
-def update_frequency_matrix(observed_pileup, read_consensus_base, read_consensus_length, true_base, true_length, alignment_reversal, matrix):
+def update_frequency_matrix(observed_pileup, read_consensus_base, true_base, true_length, alignment_reversal, matrix):
     # Did alignment reverse complement the sequence (via BAM) and ref (via pysam)? if so, revert to forward direction
     # if alignment_reversal:
     #     true_base = complement_base(true_base)
@@ -54,7 +55,7 @@ def update_frequency_matrix(observed_pileup, read_consensus_base, read_consensus
     for item in observed_pileup:
         observed_length = item.length
         observed_base = item.base
-        count = item.count
+        weight = item.weight
 
         if observed_length > MAX_RUNLENGTH:
             observed_length = MAX_RUNLENGTH
@@ -63,7 +64,7 @@ def update_frequency_matrix(observed_pileup, read_consensus_base, read_consensus
             true_length = MAX_RUNLENGTH
 
         if observed_base == read_consensus_base:
-            matrix[int(item.reversal), true_base_index, true_length, observed_length] += count
+            matrix[int(item.reversal), true_base_index, true_length, observed_length] += weight
 
         # matrix[int(item.reversal), base_index, true_length, observed_length] += count
 
@@ -91,28 +92,24 @@ def complement_base(base):
 
 def reverse_runlength_read(runlength_read):
     sequence = runlength_read.sequence
-    lengths = runlength_read.lengths
     pileup = runlength_read.pileup
 
     reversed_sequence = list()
-    reversed_lengths = list()
     reversed_pileup = list()
 
     for i in reversed(range(len(sequence))):
         reversed_sequence.append(sequence[i])
-        reversed_lengths.append(lengths[i])
         reversed_pileup.append(pileup[i])
 
     reversed_sequence = "".join(reversed_sequence)
 
     runlength_read.sequence = reversed_sequence
-    runlength_read.lengths = reversed_lengths
     runlength_read.pileup = reversed_pileup
 
     return runlength_read
 
 
-def parse_match(alignment_position, length, read_sequence, read_consensus_lengths_segment, observed_pileup_segment,
+def parse_match(alignment_position, length, read_sequence, observed_pileup_segment,
                 ref_sequence, ref_runlengths, reversal_status, matrix):
     """
     Process a cigar operation that is a match
@@ -130,7 +127,7 @@ def parse_match(alignment_position, length, read_sequence, read_consensus_length
     for i in range(start, stop):
         ref_base = ref_sequence[i-alignment_position]
         read_base = read_sequence[i-alignment_position]
-        read_consensus_length = read_consensus_lengths_segment[i-alignment_position]
+        # read_consensus_length = read_consensus_lengths_segment[i-alignment_position]
 
         ref_runlength = ref_runlengths[i-alignment_position]
 
@@ -138,7 +135,7 @@ def parse_match(alignment_position, length, read_sequence, read_consensus_length
 
         update_frequency_matrix(observed_pileup=observed_pileup,
                                 read_consensus_base=read_base,
-                                read_consensus_length=read_consensus_length,
+                                # read_consensus_length=read_consensus_length,
                                 true_base=ref_base,
                                 true_length=ref_runlength,
                                 alignment_reversal=reversal_status,
@@ -147,7 +144,7 @@ def parse_match(alignment_position, length, read_sequence, read_consensus_length
     return
 
 
-def parse_cigar_tuple(cigar_code, length, alignment_position, read_sequence_segment, read_consensus_lengths_segment, ref_sequence_segment,
+def parse_cigar_tuple(cigar_code, length, alignment_position, read_sequence_segment, ref_sequence_segment,
                       ref_runlengths_segment, observed_pileup_segment, reversal_status, matrix):
     """
     Read an RLE reference segment, a segment of an assembly, and all the aligned reads that contributed to that assembly
@@ -183,7 +180,7 @@ def parse_cigar_tuple(cigar_code, length, alignment_position, read_sequence_segm
                     read_sequence=read_sequence_segment,
                     observed_pileup_segment=observed_pileup_segment,
                     ref_sequence=ref_sequence_segment,
-                    read_consensus_lengths_segment=read_consensus_lengths_segment,
+                    # read_consensus_lengths_segment=read_consensus_lengths_segment,
                     ref_runlengths=ref_runlengths_segment,
                     reversal_status=reversal_status,
                     matrix=matrix)
@@ -267,7 +264,7 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
             read_sequence = runlength_read.sequence
             # read_sequence = read.query_sequence
 
-            read_consensus_lengths = runlength_read.lengths
+            # read_consensus_lengths = runlength_read.lengths
             observed_pileup = runlength_read.pileup
 
             ref_sequence = fasta_handler.get_sequence(chromosome_name=chromosome_name,
@@ -305,7 +302,7 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
             clipped_stop = len(observed_pileup) - n_final_hard_clipped_bases
 
             read_sequence = read_sequence[clipped_start:clipped_stop]
-            read_consensus_lengths = read_consensus_lengths[clipped_start:clipped_stop]
+            # read_consensus_lengths = read_consensus_lengths[clipped_start:clipped_stop]
             observed_pileup = observed_pileup[clipped_start:clipped_stop]
 
             # print("\nREAD AFTER CLIPPING")
@@ -350,14 +347,14 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
 
                 ref_runlengths_segment = ref_runlengths[ref_index:ref_index+length]
 
-                read_consensus_lengths_segment = read_consensus_lengths[read_index:read_index+length]
+                # read_consensus_lengths_segment = read_consensus_lengths[read_index:read_index+length]
                 observed_pileup_segment = observed_pileup[read_index:read_index+length]
 
                 ref_index_increment, read_index_increment = parse_cigar_tuple(cigar_code=cigar_code,
                                                                               length=length,
                                                                               alignment_position=ref_alignment_start + ref_index,
                                                                               read_sequence_segment=read_sequence_segment,
-                                                                              read_consensus_lengths_segment=read_consensus_lengths_segment,
+                                                                              # read_consensus_lengths_segment=read_consensus_lengths_segment,
                                                                               ref_sequence_segment=ref_sequence_segment,
                                                                               ref_runlengths_segment=ref_runlengths_segment,
                                                                               observed_pileup_segment=observed_pileup_segment,
@@ -394,12 +391,17 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, reads_vs_re
 
         reads = bam_handler.get_reads(chromosome_name=chromosome_name, start=0, stop=chromosome_length)
 
-        n_reads = parse_reads(chromosome_name=chromosome_name,
-                              fasta_handler=fasta_handler,
-                              reads=reads,
-                              complete_ref_runlengths=runlength_ref_sequences[chromosome_name][LENGTHS],
-                              runlength_read_data=runlength_read_data,
-                              matrix=matrix)
+        try:
+            n_reads = parse_reads(chromosome_name=chromosome_name,
+                                  fasta_handler=fasta_handler,
+                                  reads=reads,
+                                  complete_ref_runlengths=runlength_ref_sequences[chromosome_name][LENGTHS],
+                                  runlength_read_data=runlength_read_data,
+                                  matrix=matrix)
+        except Exception as e:
+            print("ERROR FILE NOT FOUND %s" % runlength_ref_sequence_path)
+            print(e)
+            exit()
 
         if n_reads > 0:
             yield (chromosome_name, matrix)
@@ -447,7 +449,7 @@ def runlength_encode_fasta(fasta_sequence_path):
     return runlength_sequences
 
 
-def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_reads_path, runlength_reads_sequences, output_dir):
+def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_reads_path, runlength_reads_sequences, output_dir, max_threads):
     print("SAVING run length fasta file:", runlength_reference_path)
     print("SAVING run length fasta file:", runlength_reads_path)
 
@@ -465,28 +467,80 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
                                                                ref_sequence_path=runlength_reference_path,
                                                                reads_sequence_path=runlength_reads_path,
                                                                preset="asm20",
-                                                               k=18)
+                                                               k=18,
+                                                               max_threads=max_threads)
 
     return output_bam_file_path
 
 
-def main():
-    # ref_fasta_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_14_18_19_4_215702_ref.fasta"
-    # runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_14_18_19_4_215702_runnie.out"
+def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path, all_matrices, counter):
+    reads_fasta_filename_prefix = ".".join(os.path.basename(marginpolish_path).split(".")[:-1])
+    runlength_reads_fasta_filename = reads_fasta_filename_prefix + "_rle.fasta"
+    runlength_reads_fasta_path = os.path.join(output_dir, runlength_reads_fasta_filename)
 
+    shasta_handler = MarginpolishRunlengthHandler(marginpolish_path)
+
+    # print("Parsing tsv file...")
+
+    name, read = shasta_handler.get_pileup_data(cutoff=sys.maxsize)
+
+    read_data = {name: read}
+
+    # print("\nRLE encoding reference sequence...")
+
+    runlength_ref_sequences = runlength_encode_fasta(fasta_sequence_path=ref_fasta_path)
+
+    reads_vs_ref_bam_path = align_as_RLE(runlength_reference_path=runlength_ref_fasta_path,
+                                         runlength_ref_sequences=runlength_ref_sequences,
+                                         runlength_reads_path=runlength_reads_fasta_path,
+                                         runlength_reads_sequences=read_data,
+                                         output_dir=output_dir,
+                                         max_threads=1)
+
+    # print("\nGenerating matrices...")
+
+    chromosomal_matrices = generate_runlength_frequency_matrix(runlength_ref_sequence_path=runlength_ref_fasta_path,
+                                                               reads_vs_ref_bam_path=reads_vs_ref_bam_path,
+                                                               runlength_ref_sequences=runlength_ref_sequences,
+                                                               runlength_read_data=read_data,
+                                                               max_runlength=MAX_RUNLENGTH)
+
+    for chromosome_name, matrix in chromosomal_matrices:
+        all_matrices.append(matrix)
+
+    counter.value += 1
+    sys.stderr.write("\r%d" % counter.value)
+
+
+def main():
     # E. COLI rad2
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    # shasta_path = "/home/ryan/code/runlength_analysis/data/shasta_coverage_data_ecoli_60x_train.csv"
-    shasta_paths = ["/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/run_2019_4_11_14_14_56_332088/0.csv",
-                    "/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/run_2019_4_11_14_14_56_332088/1.csv",
-                    "/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/run_2019_4_11_14_14_56_332088/2.csv"]
+    marginpolish_paths = ["/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00000.gi-0-50050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00001.gi-49950-100050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00002.gi-99950-150050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00003.gi-149950-200050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00004.gi-199950-250050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00005.gi-249950-300050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00006.gi-299950-350050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00007.gi-349950-400050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00008.gi-399950-450050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00009.gi-449950-500050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00010.gi-499950-550050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00011.gi-549950-600050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00012.gi-599950-650050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00013.gi-649950-700050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00014.gi-699950-750050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00015.gi-749950-800050.tsv",
+                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00016.gi-799950-850050.tsv"]
 
-    # HUMAN
-    # ref_fasta_path = "/home/ryan/data/GIAB/GRCh38_WG.fa"
-    # shasta_path = "/home/ryan/code/runlength_analysis/data/shasta_coverage_data_chr11_GM24143_subsample_20.csv"
+    # Test
+    # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_coverage_data_marginpolish_2019_4_12_13_31_6_689541_ref.fasta"
+    # marginpolish_paths = ["/home/ryan/code/runlength_analysis/data/synthetic_coverage_data_marginpolish_2019_4_12_13_31_6_689541.tsv"]
+
+    max_threads = max(1, cpu_count() - 2)
 
     output_parent_dir = "output/"
-    output_dir = "runlength_matrix_from_shasta_output_" + FileManager.get_datetime_string()
+    output_dir = "runlength_matrix_from_marginpolish_output_" + FileManager.get_datetime_string()
     output_dir = os.path.join(output_parent_dir, output_dir)
     FileManager.ensure_directory_exists(output_dir)
 
@@ -494,41 +548,16 @@ def main():
     runlength_ref_fasta_filename = ref_fasta_filename_prefix + "_rle.fasta"
     runlength_ref_fasta_path = os.path.join(output_dir, runlength_ref_fasta_filename)
 
-    all_matrices = list()
+    manager = Manager()
+    all_matrices = manager.list()
+    counter = manager.Value('i', 0)
 
-    for shasta_path in shasta_paths:
-        reads_fasta_filename_prefix = ".".join(os.path.basename(shasta_path).split(".")[:-1])
-        runlength_reads_fasta_filename = reads_fasta_filename_prefix + "_rle.fasta"
-        runlength_reads_fasta_path = os.path.join(output_dir, runlength_reads_fasta_filename)
+    process_arguments = list()
+    for marginpolish_path in marginpolish_paths:
+        process_arguments.append([output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path, all_matrices, counter])
 
-        shasta_handler = ShastaRunlengthHandler(shasta_path)
-
-        print("Parsing shasta file...")
-
-        name, read = shasta_handler.get_pileup_data(cutoff=sys.maxsize)
-
-        read_data = {name:read}
-
-        print("\nRLE encoding reference sequence...")
-
-        runlength_ref_sequences = runlength_encode_fasta(fasta_sequence_path=ref_fasta_path)
-
-        reads_vs_ref_bam_path = align_as_RLE(runlength_reference_path=runlength_ref_fasta_path,
-                                             runlength_ref_sequences=runlength_ref_sequences,
-                                             runlength_reads_path=runlength_reads_fasta_path,
-                                             runlength_reads_sequences=read_data,
-                                             output_dir=output_dir)
-
-        print("\nGenerating matrices...")
-
-        chromosomal_matrices = generate_runlength_frequency_matrix(runlength_ref_sequence_path=runlength_ref_fasta_path,
-                                                                   reads_vs_ref_bam_path=reads_vs_ref_bam_path,
-                                                                   runlength_ref_sequences=runlength_ref_sequences,
-                                                                   runlength_read_data=read_data,
-                                                                   max_runlength=MAX_RUNLENGTH)
-
-        for chromosome_name, matrix in chromosomal_matrices:
-            all_matrices.append(matrix)
+    with Pool(processes=max_threads) as pool:
+        pool.starmap(parse_coverage_data, process_arguments)
 
     matrix = numpy.stack(all_matrices, axis=0)
     matrix = numpy.sum(matrix, axis=0)

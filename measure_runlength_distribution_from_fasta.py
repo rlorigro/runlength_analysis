@@ -237,10 +237,11 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_sequences,
     :param fasta_handler: fasta_handler object that can retrieve substrings from the reference sequence
     :return:
     """
-    read_data = list()
-
+    r = 0
     for read in reads:
-        if read.mapping_quality > 0:
+        if read.mapping_quality > 0 and not read.is_secondary:
+            r += 1
+
             read_id = read.query_name
             ref_alignment_start = read.reference_start
             ref_alignment_stop = get_read_stop_position(read)
@@ -323,7 +324,7 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_sequences,
                 read_index += read_index_increment
                 ref_index += ref_index_increment
 
-    return read_data
+    return r
 
 
 def generate_runlength_frequency_matrix(runlength_ref_sequence_path, read_vs_ref_bam_path,
@@ -350,16 +351,19 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, read_vs_ref
 
         reads = bam_handler.get_reads(chromosome_name=chromosome_name, start=0, stop=chromosome_length)
 
-        parse_reads(chromosome_name=chromosome_name,
-                    fasta_handler=fasta_handler,
-                    reads=reads,
-                    complete_ref_runlengths=runlength_ref_sequences[chromosome_name][LENGTHS],
-                    runlength_read_sequences=runlength_read_sequences,
-                    matrix=matrix)
+        n_reads = parse_reads(chromosome_name=chromosome_name,
+                              fasta_handler=fasta_handler,
+                              reads=reads,
+                              complete_ref_runlengths=runlength_ref_sequences[chromosome_name][LENGTHS],
+                              runlength_read_sequences=runlength_read_sequences,
+                              matrix=matrix)
 
         # plot_base_matrices(matrix=matrix, cutoff=40)
 
-        yield matrix
+        if n_reads > 0:
+            yield (chromosome_name, matrix)
+        else:
+            sys.stderr.write("No reads found for chromosome: %s\n" % chromosome_name)
 
 
 def runlength_encode(sequence):
@@ -389,15 +393,15 @@ def runlength_encode_fasta(fasta_sequence_path):
     runlength_sequences = dict()
 
     for contig_name in contig_names:
-        chromosome_length = fasta_handler.get_chr_sequence_length(contig_name)
-
         sequence = fasta_handler.get_sequence(chromosome_name=contig_name, start=None, stop=None)
 
         bases, lengths = runlength_encode(sequence)
 
         runlength_sequences[contig_name] = (bases, lengths)
 
-        # print(contig_name, len(bases), len(lengths))
+        sys.stderr.write("\rRun length encoded %s            " % contig_name)
+
+    sys.stderr.write("\n")
 
     return runlength_sequences
 
@@ -475,28 +479,14 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
 
 def main():
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    read_fasta_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/sequence_subset_train_60x_10kb.fastq"
-    # read_fasta_path = "/home/ryan/software/shasta/output/run_2019_4_2_9_28_TEST_BAYES/Assembly.fasta"
-    # read_fasta_path = "/home/ryan/software/shasta/output/run_2019_4_2_9_29_TEST_NO_BAYES/Assembly.fasta"
-    # read_fasta_path = "/home/ryan/software/shasta/output/run_2019_4_2_13_34_BAYES_NO_PRIOR/Assembly.fasta"
-
-    # read_fasta_path = "/home/ryan/software/shasta/output/NO_BAYES_4_4_2019/run_2019_4_4_16_22_2_217698/Assembly.fasta"
-    # read_fasta_path = "/home/ryan/software/shasta/output/BAYES_DEFAULT_4_4_2019/run_2019_4_4_16_23_46_269190/Assembly.fasta"
-    # read_fasta_path = "/home/ryan/software/shasta/output/BAYES_NEW_4_4_2019/run_2019_4_4_16_26_22_687430/Assembly.fasta"
-    # read_fasta_path = "/home/ryan/software/shasta/output/BAYES_STRAND_4_4_2019/run_2019_4_5_12_58_42_872166/Assembly.fasta"
-    # read_fasta_path = "/home/ryan/software/shasta/output/BAYES_STRAND_NO_PRIOR_4_4_2019/run_2019_4_5_13_22_31_842825/Assembly.fasta"
-    # read_fasta_path = "/home/ryan/software/shasta/output/BAYES_STRAND_4_5_2019/run_2019_4_5_13_46_19_628/Assembly.fasta"
-    # read_fasta_path = "/home/ryan/software/shasta/output/BAYES_STRAND_NO_PRIOR_4_5_2019/run_2019_4_5_13_58_30_740520/Assembly.fasta"
-
-    # read_fasta_path = "/home/ryan/software/shasta/output/run_2019_3_28_15_28_11_844359/Assembly.fasta"
-    # read_fasta_path = "/home/ryan/software/shasta/output/run_2019_3_28_12_55_NO_BAYES/Assembly.fasta"
+    read_fasta_path = "/home/ryan/software/shasta/output/flappie_first_410k_OLD_BAYES/run_2019_4_11_15_55_38_869011/Assembly.fasta"
 
     # ---- TEST DATA ----
     # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_ref.fasta"
     # read_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_reads.fasta"
     # -------------------
 
-    output_parent_dir = "output/"
+    output_parent_dir = "output/shasta_test_new_ecoli"
     output_dir = "runlength_matrix_from_sequence_" + FileManager.get_datetime_string()
     output_dir = os.path.join(output_parent_dir, output_dir)
     FileManager.ensure_directory_exists(output_dir)
@@ -523,26 +513,35 @@ def main():
                                                                runlength_ref_sequences=runlength_ref_sequences,
                                                                runlength_read_sequences=runlength_read_sequences)
 
-    for matrix in chromosomal_matrices:
+    for chromosome_name, matrix in chromosomal_matrices:
         save_directional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                               frequency_matrices=matrix,
+                                                              chromosome_name=chromosome_name,
                                                               log_normalize=False,
-                                                              plot=False)
+                                                              diagonal_bias=0,
+                                                              plot=False,
+                                                              default_type=float)
 
         save_directional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                               frequency_matrices=matrix,
+                                                              chromosome_name=chromosome_name,
                                                               log_normalize=True,
-                                                              plot=False)
+                                                              pseudocount=15,
+                                                              diagonal_bias=0,
+                                                              plot=False,
+                                                              default_type=float)
 
         nondirectional_matrix = sum_complementary_matrices(matrix, max_runlength=MAX_RUNLENGTH)
 
         save_nondirectional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                                  frequency_matrices=nondirectional_matrix,
+                                                                 chromosome_name=chromosome_name,
                                                                  log_normalize=False,
                                                                  plot=False)
 
         save_nondirectional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                                  frequency_matrices=nondirectional_matrix,
+                                                                 chromosome_name=chromosome_name,
                                                                  log_normalize=True,
                                                                  plot=False)
 

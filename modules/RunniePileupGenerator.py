@@ -58,8 +58,8 @@ class PileupGenerator:
 
     def get_read_segments(self):
         for r,read in enumerate(self.reads):
-            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
-                    and read.is_supplementary is False and read.is_unmapped is False and read.is_qcfail is False:
+            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and not read.is_secondary and not read.is_unmapped \
+                    and not read.is_qcfail and not read.is_supplementary:
 
                 if read.is_read2:
                     sys.stderr.write("WARNING: 'is_read2' flag found 'True' for read: %s" % read.query_name)
@@ -71,12 +71,15 @@ class PileupGenerator:
 
     def get_aligned_read_segments(self):
         for r,read in enumerate(self.reads):
-            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
-                    and read.is_supplementary is False and read.is_unmapped is False and read.is_qcfail is False:
+            if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and not read.is_secondary and not read.is_unmapped \
+                    and not read.is_qcfail and not read.is_supplementary:
 
                 if read.is_read2:
                     sys.stderr.write("WARNING: 'is_read2' flag found 'True' for read: %s" % read.query_name)
                     continue
+
+                for read_id in self.sequences:
+                    print(self.sequences[read_id])
 
                 self.get_aligned_segment_from_read(read)
 
@@ -134,12 +137,13 @@ class PileupGenerator:
                     # read has no inserts
                     padding_length = max_insert_length
 
-                # print(''.join(self.aligned_sequences[read_id]))
-                # print(''.join(self.cigars[read_id]))
-                # print("position: ", position)
-                # print("start: ", self.start_position)
-                # print("padding: ", padding_length)
-                # print("index: ", segment_index)
+                if segment_index < 200:
+                    print(''.join(self.aligned_sequences[read_id]))
+                    print(''.join(self.cigars[read_id]))
+                    print("position: ", position)
+                    print("start: ", self.start_position)
+                    print("padding: ", padding_length)
+                    print("index: ", segment_index)
 
                 cigars = self.cigars[read_id]
                 padded_cigars = cigars[:segment_index] + [INSERT_CHAR]*padding_length + cigars[segment_index:]
@@ -162,7 +166,8 @@ class PileupGenerator:
 
             # print(self.read_alignment_starts[read_id], self.read_alignment_ends[read_id])
             # print(self.start_position, self.end_position)
-            # print(''.join(self.aligned_sequences[read_id]))
+            print(''.join(self.aligned_sequences[read_id]))
+            print(''.join(self.cigars[read_id]))
 
     def update_positional_insert_lengths(self, position, length):
         if position not in self.positional_insert_lengths:
@@ -177,6 +182,10 @@ class PileupGenerator:
         :return:
         """
         read_id = read.query_name
+
+        if read_id in self.read_start_indices:
+            print("WARNING: read_id hash conflict", read_id)
+
         cigar_tuples = read.cigartuples
 
         reversal = read.is_reverse
@@ -185,6 +194,10 @@ class PileupGenerator:
         read_scales = self.read_data[read_id].scales
         read_shapes = self.read_data[read_id].shapes
         read_sequence = self.read_data[read_id].sequence
+        # read_sequence = read.query_sequence
+
+        print(read_id)
+        print(len(read.query_sequence), len(read_sequence), len(read_scales), len(read_shapes))
 
         if reversal:
             read_scales = list(reversed(read_scales))
@@ -209,15 +222,16 @@ class PileupGenerator:
 
         read_alignment_start = read.reference_start
 
+        print([c for c in cigar_tuples[:4]])
+        print(len(read.query_sequence), len(read_sequence), len(read_scales), len(read_shapes))
+        print()
+
         # read_index: index of read sequence
         # ref_index: index of reference sequence
         read_index = 0
         ref_index = 0
         found_valid_cigar = False
         completion_status = False
-
-        if read_id in self.read_start_indices:
-            print("WARNING: read_id hash conflict", read_id)
 
         for c,cigar in enumerate(cigar_tuples):
             cigar_code = cigar[0]

@@ -327,15 +327,22 @@ def normalize(frequency_matrix, pseudocount, diagonal_bias=0):
     return probability_matrix
 
 
-def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, delimiter=",", log_normalize=False, plot=False, pseudocount=0, diagonal_bias=0, default_type=int):
-    if log_normalize:
-        filename = "probability_matrices_directional_" + FileManager.get_datetime_string() + ".csv"
+def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, chromosome_name=None, delimiter=",", log_normalize=False, plot=False, pseudocount=0, diagonal_bias=0, default_type=int):
+    if chromosome_name is not None:
+        name_suffix = chromosome_name + "_"
     else:
-        filename = "frequency_matrices_directional_" + FileManager.get_datetime_string() + ".csv"
+        name_suffix = ""
+
+    if log_normalize:
+        filename = "probability_matrices_directional_" + name_suffix + FileManager.get_datetime_string() + ".csv"
+    else:
+        filename = "frequency_matrices_directional_" + name_suffix + FileManager.get_datetime_string() + ".csv"
 
     reversal_suffixes = ["F", "R"]
     output_path = os.path.join(output_dir, filename)
     file = open(output_path, "w")
+
+    print("SAVING: %s" % output_path)
 
     for reversal in [0,1]:
         for base_index in range(4):
@@ -357,9 +364,13 @@ def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_
             matrix_name = "_".join([base, suffix])
             header = ">" + matrix_name + "\n"
 
+            # print(type)
             file.write(header)
             for r in range(matrix.shape[0]):
                 row = [str(type(x)) for x in matrix[r]]
+
+                # if r < 4 and not log_normalize:
+                    # print(row)
 
                 row = delimiter.join(row) + "\n"
 
@@ -370,11 +381,16 @@ def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_
     file.close()
 
 
-def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, delimiter=",", log_normalize=False, pseudocount=1e-12, diagonal_bias=0, plot=False):
-    if log_normalize:
-        filename = "probability_matrices_" + FileManager.get_datetime_string() + ".csv"
+def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, chromosome_name=None, delimiter=",", log_normalize=False, pseudocount=1e-12, diagonal_bias=0, plot=False, default_type=int):
+    if chromosome_name is not None:
+        name_suffix = chromosome_name + "_"
     else:
-        filename = "frequency_matrices_" + FileManager.get_datetime_string() + ".csv"
+        name_suffix = ""
+
+    if log_normalize:
+        filename = "probability_matrices_" + name_suffix + FileManager.get_datetime_string() + ".csv"
+    else:
+        filename = "frequency_matrices_" + name_suffix + FileManager.get_datetime_string() + ".csv"
 
     output_path = os.path.join(output_dir, filename)
     file = open(output_path, "w")
@@ -384,7 +400,7 @@ def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequen
 
         matrix = numpy.squeeze(frequency_matrices[base_index,:,:])
 
-        type = int
+        type = default_type
         if log_normalize:
             matrix = normalize(matrix, pseudocount=pseudocount, diagonal_bias=diagonal_bias)
             type = float

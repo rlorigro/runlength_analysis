@@ -5,7 +5,7 @@ import math
 import sys
 
 
-def get_coverage(bam_file_path, chromosome_name, start, stop):
+def get_coverage_range(bam_file_path, chromosome_name, start, stop):
     sam_file = pysam.AlignmentFile(bam_file_path, "rb")
 
     pileup_columns = sam_file.pileup(chromosome_name, start, stop)
@@ -22,6 +22,23 @@ def get_coverage(bam_file_path, chromosome_name, start, stop):
 
     return coverages
 
+
+def get_coverage(bam_file_path, chromosome_name, coordinate):
+    sam_file = pysam.AlignmentFile(bam_file_path, "rb")
+
+    pileup_columns = sam_file.pileup(chromosome_name, coordinate, coordinate+2)
+    coverage = 0
+
+    for pileup_column in pileup_columns:
+        position = pileup_column.pos
+        position_coverage = pileup_column.nsegments
+
+        if position == coordinate:
+            coverage = position_coverage
+
+    sam_file.close()
+
+    return coverage
 
 def test():
     # BAM of reads aligned to some sequence
@@ -48,7 +65,7 @@ def test():
 
         for c,coord in enumerate(steps):
             coord = int(math.floor(coord))
-            coverage = get_coverage(bam_file_path=bam_path, chromosome_name=name, start=coord, stop=coord+2)[0]
+            coverage = get_coverage(bam_file_path=bam_path, chromosome_name=name, coordinate=coord)
             coverages.append(coverage)
             sys.stderr.write("\r %.2f%%" % (c+1/n_samples*100))
 
@@ -81,7 +98,7 @@ def main(bam_path, chromosome_name, start, stop, n_samples):
     max_coverage = 0
     for c,coord in enumerate(steps):
         coord = int(math.floor(coord))
-        coverage = get_coverage(bam_file_path=bam_path, chromosome_name=chromosome_name, start=coord, stop=coord+2)[0]
+        coverage = get_coverage(bam_file_path=bam_path, chromosome_name=chromosome_name, coordinate=coord)
         coverages.append(coverage)
         sys.stderr.write("\r %.2f%%" % (c+1/n_samples*100))
 
@@ -93,8 +110,13 @@ def main(bam_path, chromosome_name, start, stop, n_samples):
     axes = pyplot.axes()
     axes.plot(coverages)
     axes.set_ylim([0, round(max_coverage*1.1)])
+    axes.set_title("Coverage on chromosome '%s' from %d to %d" % (chromosome_name, start, stop))
+    axes.set_ylabel("Coverage (# reads)")
+    axes.set_xlabel("Interval")
 
-    pyplot.show()
+    pyplot.savefig("coverage.png")
+
+    # pyplot.show()
     pyplot.close()
 
 
