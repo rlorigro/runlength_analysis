@@ -513,7 +513,7 @@ def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength
     sys.stderr.write("\r%d" % counter.value)
 
 
-def main(ref_fasta_path, marginpolish_parent_dir):
+def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
     # ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
     # marginpolish_parent_dir = "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity"
 
@@ -524,7 +524,8 @@ def main(ref_fasta_path, marginpolish_parent_dir):
     # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_coverage_data_marginpolish_2019_4_12_13_31_6_689541_ref.fasta"
     # marginpolish_paths = ["/home/ryan/code/runlength_analysis/data/synthetic_coverage_data_marginpolish_2019_4_12_13_31_6_689541.tsv"]
 
-    max_threads = max(1, cpu_count() - 2)
+    if max_threads is None:
+        max_threads = max(1, cpu_count() - 2)
 
     output_parent_dir = "output/"
     output_dir = "runlength_matrix_from_marginpolish_output_" + FileManager.get_datetime_string()
@@ -603,6 +604,12 @@ if __name__ == "__main__":
         required=True,
         help="file path of FASTA reference sequence file"
     )
+    parser.add_argument(
+        "--max_threads", "-t",
+        type=int,
+        required=False,
+        help="total number of vCPU to allocate to this job"
+    )
     args = parser.parse_args()
 
-    main(ref_fasta_path=args.ref, marginpolish_parent_dir=args.input_dir)
+    main(ref_fasta_path=args.ref, marginpolish_parent_dir=args.input_dir, max_threads=args.max_threads)
