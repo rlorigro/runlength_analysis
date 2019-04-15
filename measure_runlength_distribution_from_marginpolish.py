@@ -4,6 +4,7 @@ from handlers.BamHandler import BamHandler
 from multiprocessing import Manager, Pool, cpu_count
 from modules.align import align_minimap
 from modules.matrix import *
+import argparse
 import numpy
 import copy
 import sys
@@ -512,26 +513,12 @@ def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength
     sys.stderr.write("\r%d" % counter.value)
 
 
-def main():
-    # E. COLI rad2
-    ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    marginpolish_paths = ["/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00000.gi-0-50050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00001.gi-49950-100050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00002.gi-99950-150050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00003.gi-149950-200050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00004.gi-199950-250050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00005.gi-249950-300050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00006.gi-299950-350050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00007.gi-349950-400050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00008.gi-399950-450050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00009.gi-449950-500050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00010.gi-499950-550050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00011.gi-549950-600050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00012.gi-599950-650050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00013.gi-649950-700050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00014.gi-699950-750050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00015.gi-749950-800050.tsv",
-                          "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity.bottom900k/preRleUpdate.repeatCount.C00016.gi-799950-850050.tsv"]
+def main(ref_fasta_path, marginpolish_parent_dir):
+    # ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
+    # marginpolish_parent_dir = "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity"
+
+    marginpolish_paths = FileManager.get_all_file_paths_by_type(parent_directory_path=marginpolish_parent_dir,
+                                                                file_extension=".tsv")
 
     # Test
     # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_coverage_data_marginpolish_2019_4_12_13_31_6_689541_ref.fasta"
@@ -603,4 +590,19 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--input_dir", "-i",
+        type=str,
+        required=True,
+        help="path to directory containing marginpolish TSV files"
+    )
+    parser.add_argument(
+        "--ref",
+        type=str,
+        required=True,
+        help="file path of FASTA reference sequence file"
+    )
+    args = parser.parse_args()
+
+    main(ref_fasta_path=args.ref, marginpolish_parent_dir=args.input_dir)
