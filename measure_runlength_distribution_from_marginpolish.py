@@ -399,10 +399,11 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, reads_vs_re
                                   complete_ref_runlengths=runlength_ref_sequences[chromosome_name][LENGTHS],
                                   runlength_read_data=runlength_read_data,
                                   matrix=matrix)
+
         except Exception as e:
             print("ERROR FILE NOT FOUND %s" % runlength_ref_sequence_path)
             print(e)
-            exit()
+            continue
 
         if n_reads > 0:
             yield (chromosome_name, matrix)
