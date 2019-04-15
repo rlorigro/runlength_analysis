@@ -545,7 +545,10 @@ def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
     for marginpolish_path in marginpolish_paths:
         process_arguments.append([output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path, all_matrices, counter])
 
-    with Pool(processes=max_threads) as pool:
+    if max_threads > len(process_arguments):
+        max_threads = len(process_arguments)
+
+    with Pool(processes=max_threads, maxtasksperchild=1) as pool:
         pool.starmap(parse_coverage_data, process_arguments)
 
     matrix = numpy.stack(all_matrices, axis=0)
