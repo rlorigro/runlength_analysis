@@ -507,8 +507,10 @@ def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength
                                                                runlength_read_data=read_data,
                                                                max_runlength=MAX_RUNLENGTH)
 
+    numpy_filename_prefix = ".".join(os.path.basename(reads_vs_ref_bam_path).split(".")[:-1])
+
     for chromosome_name, matrix in chromosomal_matrices:
-        numpy_filename = reads_fasta_filename_prefix + "_" + chromosome_name + "_matrix.pkl"
+        numpy_filename = numpy_filename_prefix + "_" + chromosome_name + "_matrix.pkl"
         numpy_file_path = os.path.join(output_dir, numpy_filename)
         matrix.dump(numpy_file_path)
 
