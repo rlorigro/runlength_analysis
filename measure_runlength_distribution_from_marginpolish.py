@@ -385,14 +385,14 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, reads_vs_re
         shape = [2,4,max_runlength+1,max_runlength+1]
         matrix = numpy.zeros(shape, dtype=numpy.float64)
 
-        bam_handler = BamHandler(reads_vs_ref_bam_path)
-        fasta_handler = FastaHandler(runlength_ref_sequence_path)
-
-        chromosome_length = fasta_handler.get_chr_sequence_length(chromosome_name)
-
-        reads = bam_handler.get_reads(chromosome_name=chromosome_name, start=0, stop=chromosome_length)
-
         try:
+            bam_handler = BamHandler(reads_vs_ref_bam_path)
+            fasta_handler = FastaHandler(runlength_ref_sequence_path)
+
+            chromosome_length = fasta_handler.get_chr_sequence_length(chromosome_name)
+
+            reads = bam_handler.get_reads(chromosome_name=chromosome_name, start=0, stop=chromosome_length)
+
             n_reads = parse_reads(chromosome_name=chromosome_name,
                                   fasta_handler=fasta_handler,
                                   reads=reads,
@@ -401,7 +401,7 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, reads_vs_re
                                   matrix=matrix)
 
         except Exception as e:
-            print("ERROR FILE NOT FOUND %s" % runlength_ref_sequence_path)
+            print("ERROR FILE NOT FOUND\n %s \n %s" % (runlength_ref_sequence_path, reads_vs_ref_bam_path))
             print(e)
             continue
 
@@ -475,7 +475,7 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
     return output_bam_file_path
 
 
-def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path, all_matrices, counter):
+def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path):  #, all_matrices, counter):
     reads_fasta_filename_prefix = ".".join(os.path.basename(marginpolish_path).split(".")[:-1])
     runlength_reads_fasta_filename = reads_fasta_filename_prefix + "_rle.fasta"
     runlength_reads_fasta_path = os.path.join(output_dir, runlength_reads_fasta_filename)
@@ -508,10 +508,14 @@ def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength
                                                                max_runlength=MAX_RUNLENGTH)
 
     for chromosome_name, matrix in chromosomal_matrices:
-        all_matrices.append(matrix)
+        numpy_filename = reads_fasta_filename_prefix + "_" + chromosome_name + "_matrix.pkl"
+        numpy_file_path = os.path.join(output_dir, numpy_filename)
+        matrix.dump(numpy_file_path)
 
-    counter.value += 1
-    sys.stderr.write("\r%d" % counter.value)
+        #     all_matrices.append(matrix)
+
+    # counter.value += 1
+    # sys.stderr.write("\r%d" % counter.value)
 
 
 def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
@@ -537,19 +541,26 @@ def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
     runlength_ref_fasta_filename = ref_fasta_filename_prefix + "_rle.fasta"
     runlength_ref_fasta_path = os.path.join(output_dir, runlength_ref_fasta_filename)
 
-    manager = Manager()
-    all_matrices = manager.list()
-    counter = manager.Value('i', 0)
+    # manager = Manager()
+    # all_matrices = manager.list()
+    # counter = manager.Value('i', 0)
 
     process_arguments = list()
-    for marginpolish_path in marginpolish_paths:
-        process_arguments.append([output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path, all_matrices, counter])
+    for marginpolish_path in marginpolish_paths[:20]:
+        process_arguments.append([output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path]) # , all_matrices, counter])
 
     if max_threads > len(process_arguments):
         max_threads = len(process_arguments)
 
-    with Pool(processes=max_threads, maxtasksperchild=1) as pool:
+    with Pool(processes=max_threads, maxtasksperchild=5) as pool:
         pool.starmap(parse_coverage_data, process_arguments, chunksize=1)
+
+    matrix_file_paths = FileManager.get_all_file_paths_by_type(parent_directory_path=output_dir,
+                                                               file_extension=".pkl")
+
+    all_matrices = list()
+    for path in matrix_file_paths:
+        all_matrices.append(numpy.load(path))
 
     matrix = numpy.stack(all_matrices, axis=0)
     matrix = numpy.sum(matrix, axis=0)
@@ -617,3 +628,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(ref_fasta_path=args.ref, marginpolish_parent_dir=args.input_dir, max_threads=args.max_threads)
+
+
+"""
+python3 measure_runlength_distribution_from_marginpolish.py -i /home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity --ref /home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta -t 12
+"""
