@@ -546,7 +546,7 @@ def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
     # counter = manager.Value('i', 0)
 
     process_arguments = list()
-    for marginpolish_path in marginpolish_paths[:20]:
+    for marginpolish_path in marginpolish_paths:
         process_arguments.append([output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path]) # , all_matrices, counter])
 
     if max_threads > len(process_arguments):
