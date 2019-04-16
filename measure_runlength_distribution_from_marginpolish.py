@@ -549,7 +549,7 @@ def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
         max_threads = len(process_arguments)
 
     with Pool(processes=max_threads, maxtasksperchild=1) as pool:
-        pool.starmap(parse_coverage_data, process_arguments)
+        pool.starmap(parse_coverage_data, process_arguments, chunksize=1)
 
     matrix = numpy.stack(all_matrices, axis=0)
     matrix = numpy.sum(matrix, axis=0)
