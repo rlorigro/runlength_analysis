@@ -514,22 +514,10 @@ def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength
         numpy_file_path = os.path.join(output_dir, numpy_filename)
         matrix.dump(numpy_file_path)
 
-        #     all_matrices.append(matrix)
-
-    # counter.value += 1
-    # sys.stderr.write("\r%d" % counter.value)
-
 
 def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
-    # ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    # marginpolish_parent_dir = "/home/ryan/data/Nanopore/ecoli/benedict/flappy/ecoli.repeatCount.flippity_flappity"
-
     marginpolish_paths = FileManager.get_all_file_paths_by_type(parent_directory_path=marginpolish_parent_dir,
                                                                 file_extension=".tsv")
-
-    # Test
-    # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_coverage_data_marginpolish_2019_4_12_13_31_6_689541_ref.fasta"
-    # marginpolish_paths = ["/home/ryan/code/runlength_analysis/data/synthetic_coverage_data_marginpolish_2019_4_12_13_31_6_689541.tsv"]
 
     if max_threads is None:
         max_threads = max(1, cpu_count() - 2)
@@ -543,13 +531,9 @@ def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
     runlength_ref_fasta_filename = ref_fasta_filename_prefix + "_rle.fasta"
     runlength_ref_fasta_path = os.path.join(output_dir, runlength_ref_fasta_filename)
 
-    # manager = Manager()
-    # all_matrices = manager.list()
-    # counter = manager.Value('i', 0)
-
     process_arguments = list()
     for marginpolish_path in marginpolish_paths:
-        process_arguments.append([output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path]) # , all_matrices, counter])
+        process_arguments.append([output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path])
 
     if max_threads > len(process_arguments):
         max_threads = len(process_arguments)
