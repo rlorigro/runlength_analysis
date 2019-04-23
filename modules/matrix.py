@@ -25,6 +25,41 @@ BASE_TO_INDEX = {"A": 0,
 INDEX_TO_BASE = ["A", "C", "G", "T"]
 
 
+def load_base_length_matrix_from_csv(path, max_runlength):
+    matrices = numpy.zeros([4, max_runlength + 1, max_runlength + 1])
+    base_index = None
+    row_index = 0
+
+    with open(path, "r") as file:
+        is_data = False
+
+        for line in file:
+            if not is_data:
+                if line[0] == ">":
+                    # Header
+                    base = line[1]
+                    base_index = BASE_TO_INDEX[base]
+
+                    is_data = True
+                    row_index = 0
+            else:
+                if not line[0].isspace():
+                    # Data
+                    row = list(map(float, line.strip().split(",")))
+
+                    matrices[base_index, row_index, :] = row
+
+                    row_index += 1
+
+                else:
+                    # Space
+                    is_data = False
+
+    matrices = matrices
+
+    return matrices
+
+
 def print_frequency_matrices(frequency_matrices, cutoff=None):
     if cutoff is None:
         cutoff = frequency_matrices.shape[-1]

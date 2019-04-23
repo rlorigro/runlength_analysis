@@ -165,13 +165,16 @@ def plot_residual_error(row_centered_confusions, names, y_min, y_max):
 
     axes.set_yticks(list(range(0, abs(y_max)+abs(y_min))))
     axes.set_yticklabels(list(range(y_min, y_max)))
-    axes.set_ylim([y_max-10,y_max+10])
+    axes.set_ylim([y_max-5,y_max+5])
 
     pyplot.show()
     pyplot.close()
 
 
 def main():
+    csv_paths = ["/home/ryan/code/runlength_analysis/output/shasta_median_test_ecoli/runlength_matrix_ecoli_flipflop_DEFAULT/frequency_matrices_gi_2019_4_22_11_1_7_131658.csv",
+                 "/home/ryan/code/runlength_analysis/output/shasta_median_test_ecoli/runlength_matrix_ecoli_flipflop_MEDIAN/frequency_matrices_gi_2019_4_22_11_2_17_268521.csv"]
+
     # csv_paths = ["/home/ryan/code/runlength_analysis/output/confusion_matrix_from_shasta_ecoli_60x_test_NO_BAYES/frequency_matrices_2019_4_2_9_33_38_540396.csv",
     #              "/home/ryan/code/runlength_analysis/output/confusion_matrix_from_shasta_ecoli_60x_test_BAYES/frequency_matrices_2019_4_2_9_31_35_82369.csv",
     #              "/home/ryan/code/runlength_analysis/output/confusion_matrix_from_shasta_ecoli_60x_test_BAYES_NO_PRIOR/frequency_matrices_2019_4_2_13_37_43_678144.csv"]
@@ -180,9 +183,16 @@ def main():
     #              "/home/ryan/code/runlength_analysis/output/shasta_test/BAYES_NEW/frequency_matrices_2019_4_4_16_31_52_691889.csv",
     #              "/home/ryan/code/runlength_analysis/output/shasta_test/BAYES_STRANDED/frequency_matrices_2019_4_5_13_0_31_314707.csv"]
 
-    csv_paths = ["/home/ryan/code/runlength_analysis/output/shasta_test_new_ecoli/runlength_matrix_from_sequence_NO_BAYES/frequency_matrices_gi__2019_4_11_15_49_53_146110.csv",
-                 "/home/ryan/code/runlength_analysis/output/shasta_test_new_ecoli/runlength_matrix_from_sequence_OLD_BAYES/frequency_matrices_gi__2019_4_11_16_1_7_688358.csv",
-                 "/home/ryan/code/runlength_analysis/output/shasta_test_new_ecoli/runlength_matrix_from_sequence_NEW_BAYES/frequency_matrices_gi__2019_4_11_15_51_26_588545.csv"]
+    # csv_paths = ["/home/ryan/code/runlength_analysis/output/shasta_test_new_ecoli/runlength_matrix_from_sequence_NO_BAYES/frequency_matrices_gi__2019_4_11_15_49_53_146110.csv",
+    #              "/home/ryan/code/runlength_analysis/output/shasta_test_new_ecoli/runlength_matrix_from_sequence_OLD_BAYES/frequency_matrices_gi__2019_4_11_16_1_7_688358.csv",
+    #              "/home/ryan/code/runlength_analysis/output/shasta_test_new_ecoli/runlength_matrix_from_sequence_NEW_BAYES/frequency_matrices_gi__2019_4_11_15_51_26_588545.csv"]
+
+    # csv_paths = ["/home/ryan/code/runlength_analysis/output/marginpolish_test_ecoli_60x/runlength_matrix_from_sequence_2019_4_16_OLD/frequency_matrices_gi_2019_4_16_13_57_46_35499.csv",
+    #              "/home/ryan/code/runlength_analysis/output/marginpolish_test_ecoli_60x/runlength_matrix_from_sequence_2019_4_16_NEW_30x/frequency_matrices_gi_2019_4_16_13_56_59_776517.csv",
+    #              "/home/ryan/code/runlength_analysis/output/marginpolish_test_ecoli_60x/runlength_matrix_from_sequence_2019_4_16_NEW_60x/frequency_matrices_gi_2019_4_16_13_53_39_664658.csv"]
+
+    # csv_paths = ["/home/ryan/code/runlength_analysis/output/marginpolish_test_ecoli_60x/runlength_matrix_from_sequence_2019_4_17_racon_4x/frequency_matrices_gi_2019_4_17_9_54_47_140426.csv",
+    #              "/home/ryan/code/runlength_analysis/output/marginpolish_test_ecoli_60x/runlength_matrix_from_sequence_2019_4_16_NEW_60x/frequency_matrices_gi_2019_4_16_13_53_39_664658.csv"]
 
     # csv_paths = ["/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_v1/frequency_matrices_2019_3_8_15_10_19_914103.csv",
     #              "/home/ryan/code/runnie_parser/output/runlength_matrix_from_sequence_runnie_v2/frequency_matrices_2019_3_8_15_0_34_372610.csv",

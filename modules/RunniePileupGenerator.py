@@ -78,12 +78,9 @@ class PileupGenerator:
                     sys.stderr.write("WARNING: 'is_read2' flag found 'True' for read: %s" % read.query_name)
                     continue
 
-                for read_id in self.sequences:
-                    print(self.sequences[read_id])
-
                 self.get_aligned_segment_from_read(read)
 
-            if r == self.max_coverage:
+            if len(self.aligned_sequences) == self.max_coverage:
                 break
 
         self.add_insertion_padding()
@@ -137,14 +134,6 @@ class PileupGenerator:
                     # read has no inserts
                     padding_length = max_insert_length
 
-                if segment_index < 200:
-                    print(''.join(self.aligned_sequences[read_id]))
-                    print(''.join(self.cigars[read_id]))
-                    print("position: ", position)
-                    print("start: ", self.start_position)
-                    print("padding: ", padding_length)
-                    print("index: ", segment_index)
-
                 cigars = self.cigars[read_id]
                 padded_cigars = cigars[:segment_index] + [INSERT_CHAR]*padding_length + cigars[segment_index:]
 
@@ -164,17 +153,40 @@ class PileupGenerator:
 
                 self.insert_offsets[read_id] += max_insert_length
 
-            # print(self.read_alignment_starts[read_id], self.read_alignment_ends[read_id])
-            # print(self.start_position, self.end_position)
-            print(''.join(self.aligned_sequences[read_id]))
-            print(''.join(self.cigars[read_id]))
-
     def update_positional_insert_lengths(self, position, length):
         if position not in self.positional_insert_lengths:
             self.positional_insert_lengths[position] = length
         else:
             previous_length = self.positional_insert_lengths[position]
             self.positional_insert_lengths[position] = max(previous_length, length)
+
+    @staticmethod
+    def complement_base(base):
+        complement = None
+
+        if base == "A":
+            complement = "T"
+        elif base == "T":
+            complement = "A"
+        elif base == "C":
+            complement = "G"
+        elif base == "G":
+            complement = "C"
+        else:
+            exit("ERROR: invalid base has no complement: %s" % base)
+
+        return complement
+
+    @staticmethod
+    def reverse_complement(sequence):
+        reverse_sequence = list()
+
+        for i in reversed(range(len(sequence))):
+            reverse_sequence.append(PileupGenerator.complement_base(sequence[i]))
+
+        reverse_sequence = "".join(reverse_sequence)
+
+        return reverse_sequence
 
     def get_aligned_segment_from_read(self, read):
         """
@@ -196,10 +208,8 @@ class PileupGenerator:
         read_sequence = self.read_data[read_id].sequence
         # read_sequence = read.query_sequence
 
-        print(read_id)
-        print(len(read.query_sequence), len(read_sequence), len(read_scales), len(read_shapes))
-
         if reversal:
+            read_sequence = self.reverse_complement(read_sequence)
             read_scales = list(reversed(read_scales))
             read_shapes = list(reversed(read_shapes))
 
@@ -221,10 +231,6 @@ class PileupGenerator:
         read_shapes = read_shapes[clipped_start:clipped_stop]
 
         read_alignment_start = read.reference_start
-
-        print([c for c in cigar_tuples[:4]])
-        print(len(read.query_sequence), len(read_sequence), len(read_scales), len(read_shapes))
-        print()
 
         # read_index: index of read sequence
         # ref_index: index of reference sequence
@@ -289,7 +295,13 @@ class PileupGenerator:
 
                     else:
                         # Forget reads that end/start in the middle of the window
-                        del self.aligned_sequences[read_id]
+                        if read_id in self.aligned_sequences:
+                            del self.aligned_sequences[read_id]
+
+                        if read_id in self.sequences:
+                            del self.sequences[read_id]
+                            del self.scales[read_id]
+                            del self.shapes[read_id]
 
                 break
 

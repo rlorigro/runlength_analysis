@@ -1,4 +1,4 @@
-from measure_runlength_distribution_from_runnie import runlength_encode_fasta, align_as_RLE
+from predict_runlength_from_runnie import runlength_encode_fasta, align_as_RLE, get_aligned_segments
 from modules.RunniePileupGenerator import INSERT_CHAR, DELETE_CHAR
 from modules.RunniePileupGenerator import PileupGenerator
 from handlers.RunlengthHandler_v2 import RunlengthHandler
@@ -63,50 +63,18 @@ def get_encoding(character):
     return encoding
 
 
-def get_aligned_segments(fasta_handler, bam_handler, chromosome_name, pileup_start, pileup_end, read_data, include_ref=False):
-    """
-    Get read segments from a pair of coordinates given that each read has an aligned match at the start and end
-    coordinate
-    :param fasta_handler:
-    :param bam_handler:
-    :param chromosome_name:
-    :param pileup_start:
-    :param pileup_end:
-    :return:
-    """
-    ref_sequence = fasta_handler.get_sequence(chromosome_name=chromosome_name,
-                                              start=pileup_start,
-                                              stop=pileup_end + 1)
-
-    reads = bam_handler.get_reads(chromosome_name=chromosome_name,
-                                  start=pileup_start,
-                                  stop=pileup_end)
-
-    segment_grabber = PileupGenerator(chromosome_name=chromosome_name,
-                                      start_position=pileup_start,
-                                      end_position=pileup_end,
-                                      ref_sequence=ref_sequence,
-                                      read_data=read_data,
-                                      reads=reads)
-
-    # if a reference sequence is intended to be added to the pileup, then leave a space for it
-    if include_ref:
-        segment_grabber.max_coverage -= 1
-
-    sequence_dictionary = segment_grabber.get_aligned_read_segments()
-
-    return sequence_dictionary
-
-
 def main():
-    ref_fasta_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_ref.fasta"
-    runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_runnie.out"
+    # ref_fasta_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_ref.fasta"
+    # runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_runnie.out"
 
-    pileup_start = 0
-    pileup_end = 127
+    ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
+    runlength_path = "/home/ryan/code/runlength_analysis/data/runnie_subset_test_flipflop_regional_0to10k.out"
+
+    pileup_start = 6000
+    pileup_end = 6050
 
     output_parent_dir = "output/"
-    output_dir = "runlength_matrix_from_runnie_output_" + FileManager.get_datetime_string()
+    output_dir = "runlength_pileup_test_" + FileManager.get_datetime_string()
     output_dir = os.path.join(output_parent_dir, output_dir)
     FileManager.ensure_directory_exists(output_dir)
 
@@ -144,19 +112,25 @@ def main():
     chromosome_name = contig_names[0]
     chromosome_length = fasta_handler.get_chr_sequence_length(chromosome_name)
 
-    aligned_sequences, aligned_scales, aligned_shapes = get_aligned_segments(fasta_handler=fasta_handler,
-                                                                             bam_handler=bam_handler,
-                                                                             chromosome_name=chromosome_name,
-                                                                             pileup_start=pileup_start,
-                                                                             pileup_end=pileup_end,
-                                                                             include_ref=True,
-                                                                             read_data=read_data)
+    aligned_ref_sequence, aligned_ref_lengths, aligned_sequences, aligned_scales, aligned_shapes, reversal_statuses = \
+        get_aligned_segments(fasta_handler=fasta_handler,
+                             bam_handler=bam_handler,
+                             chromosome_name=chromosome_name,
+                             pileup_start=pileup_start,
+                             pileup_end=pileup_end,
+                             runlength_ref_sequences=runlength_ref_sequences,
+                             read_data=read_data)
 
     sequence_encoding = list()
     scale_encoding = list()
     shape_encoding = list()
     modes_encoding = list()
+
+    print(len(aligned_sequences.keys()))
+
+    print("REF\t", "".join(aligned_ref_sequence))
     for read_id in aligned_sequences.keys():
+        print("READ\t%s\t%s" % (read_id, "".join(aligned_sequences[read_id])))
         sequence_encoding.append(list(map(get_encoding, aligned_sequences[read_id])))
         scale_encoding.append(aligned_scales[read_id])
         shape_encoding.append(aligned_shapes[read_id])

@@ -291,6 +291,7 @@ class PileupGenerator:
             # update start position
             if in_left_bound:
                 if read_id not in self.read_start_indices:
+                    print("Updating read start\n %s\n index: %s\n position: %s\n" % (read_id, index, i))
                     self.read_start_indices[read_id] = index
                     self.read_alignment_starts[read_id] = i
 
@@ -372,6 +373,7 @@ class PileupGenerator:
             # update start position
             if in_left_bound:
                 if read_id not in self.read_start_indices:
+                    print("Updating read start\n %s\n index: %s\n position: %s\n" % (read_id, index, i))
                     self.read_start_indices[read_id] = index
                     self.read_alignment_starts[read_id] = i
 

@@ -172,16 +172,14 @@ def main():
                                                                    runnie_path=runnie_test_subset_path)
 
 
-def find_runnie_read_line_number():
-    runnie_path = "/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_all.out"
+def find_runnie_read_line_number(runnie_path, read_id):
+    # runnie_path = "/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_all.out"
 
     runnie_handler = RunlengthHandler(runnie_path)
     runnie_iterator = runnie_handler.iterate_read_names(print_status=True, line_number=True)
 
-    cutoff = sys.maxsize
-
     for n, (line_number, name) in enumerate(runnie_iterator):
-        if name == "76608869-fe22-4b1a-84c6-412166583600":
+        if name == read_id:
             print()
             print(line_number, name)
             print()
@@ -193,8 +191,6 @@ def find_fastq_read_line_number():
 
     fastq_handler = FastqHandler(fastq_path, strip_header=True)
     fastq_iterator = fastq_handler.iterate_read_names(print_status=True, line_number=True)
-
-    cutoff = sys.maxsize
 
     for n, (line_number, name) in enumerate(fastq_iterator):
         if name == "76608869-fe22-4b1a-84c6-412166583600":
@@ -214,13 +210,18 @@ def print_file_lines(file_path, start, stop):
 if __name__ == "__main__":
     # main()
 
-    names = read_names_from_fastq("/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/sequence_subset_test_60x_10kb.fastq")
-    runnie_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/runnie_subset_test.out"
-    output_dir = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/"
-    output_filename_suffix = "test_60x_10kb"
-    extract_runnie_reads_by_name(runnie_path, output_dir, output_filename_suffix, names)
+    # names = read_names_from_fastq("/home/ryan/data/Nanopore/ecoli/miten/guppy/r94_ec_rad2_VS_refEcoli_region_0to10k.fastq")
+    # runnie_path = "/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_all.out"
+    # output_dir = "/home/ryan/code/runlength_analysis/data/"
+    # output_filename_suffix = "test_flipflop_regional_0to10k"
+    # extract_runnie_reads_by_name(runnie_path, output_dir, output_filename_suffix, names)
 
-    # find_read_line_number()
+    find_runnie_read_line_number(runnie_path="/home/ryan/code/runlength_analysis/data/runnie_subset_test_flipflop_regional_0to10k.out",
+                                 read_id="b67b7dad-97cd-4cee-a222-0263df85e612")
+
+    find_runnie_read_line_number(runnie_path="/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_all.out",
+                                 read_id="b67b7dad-97cd-4cee-a222-0263df85e612")
+
     # find_fastq_read_line_number()
 
     # print_file_lines("/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_all.out", 1264104048, 1264104048+100)

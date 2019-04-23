@@ -294,14 +294,15 @@ def main():
     # runlength_path = "/home/ryan/code/runlength_analysis/data/synthetic_runnie_test_2019_4_8_14_33_30_333396_runnie.out"
 
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    runlength_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/runnie_subset_test_60x_10kb.out"
+    runlength_path = "/home/ryan/code/runlength_analysis/data/runnie_subset_test_flipflop_regional_0to10k.out"
 
     # WG ecoli 60x
     # matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_ecoli_wg_60x_10kb_train/probability_matrices_2019_3_27_16_48_54_490198.csv"
-    matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_5_11_16_8_642422/probability_matrices_2019_4_5_11_20_5_66642.csv"
+    # matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_5_11_16_8_642422/probability_matrices_2019_4_5_11_20_5_66642.csv"
+    matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_23_11_25_29_781234/probability_matrices_2019_4_23_11_27_15_158457.csv"
 
     # raw_matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_8_17_7_56_112544/frequency_matrices_2019_4_8_17_7_56_273747.csv"
-    raw_matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_5_11_16_8_642422/frequency_matrices_2019_4_5_11_20_5_62682.csv"
+    raw_matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_23_11_25_29_781234/frequency_matrices_2019_4_23_11_27_15_152844.csv"
 
     output_parent_dir = "output/"
     output_dir = "runlength_prediction_from_runnie_output_" + FileManager.get_datetime_string()
@@ -351,8 +352,8 @@ def main():
     length_classifier_weibull = WeibullRunlengthClassifier(raw_matrix_path, normalize_matrix=True, pseudocount=0.05)
 
     print("reading BAM")
-    for pileup_start, pileup_end in windows[:10]:
-        sys.stderr.write("\r%s"%pileup_start)
+    for pileup_start, pileup_end in windows[5:10]:
+        sys.stderr.write("\r%s" % pileup_start)
         aligned_ref_sequence, aligned_ref_lengths, aligned_sequences, aligned_scales, aligned_shapes, reversal_statuses = \
             get_aligned_segments(fasta_handler=fasta_handler,
                                  bam_handler=bam_handler,
@@ -375,7 +376,7 @@ def main():
         try:
             print("REF\t", "".join(aligned_ref_sequence))
             for read_id in aligned_sequences.keys():
-                print("READ\t","".join(aligned_sequences[read_id]))
+                print("READ\t%s\t%s" % (read_id,"".join(aligned_sequences[read_id])))
                 sequence_encoding.append(list(map(get_encoding, aligned_sequences[read_id])))
                 scale_encoding.append(aligned_scales[read_id])
                 shape_encoding.append(aligned_shapes[read_id])
