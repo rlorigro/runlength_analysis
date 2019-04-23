@@ -1,3 +1,4 @@
+import argparse
 
 
 def get_contig_names(assembly_path, min_length):
@@ -24,8 +25,8 @@ def get_contig_names(assembly_path, min_length):
     return contig_names
 
 
-def main():
-    assembly_path = "/home/ryan/software/shasta/gm24143_chr1/run_2019_4_16_14_20_20_340647/Assembly.fasta"
+def main(assembly_path):
+    # assembly_path = "/home/ryan/software/shasta/gm24143_chr1/run_2019_4_16_14_20_20_340647/Assembly.fasta"
 
     names = get_contig_names(assembly_path=assembly_path, min_length=1_000_000)
 
@@ -37,4 +38,17 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    '''
+    Processes arguments and performs tasks to generate the pileup.
+    '''
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--assembly",
+        type=str,
+        required=True,
+        help="file path of FASTQ or FASTA sequence file"
+    )
+
+    args = parser.parse_args()
+
+    main(assembly_path=args.assembly)
