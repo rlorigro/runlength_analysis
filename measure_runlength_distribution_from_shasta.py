@@ -31,26 +31,7 @@ DEBUG_INDEX = 0
 
 
 def update_frequency_matrix(observed_pileup, read_consensus_base, read_consensus_length, true_base, true_length, alignment_reversal, matrix):
-    # Did alignment reverse complement the sequence (via BAM) and ref (via pysam)? if so, revert to forward direction
-    # if alignment_reversal:
-    #     true_base = complement_base(true_base)
-
     true_base_index = BASE_TO_INDEX[true_base]
-
-    # global DEBUG_INDEX
-    # DEBUG_INDEX += 1
-    #
-    # if DEBUG_INDEX < 20:
-    #     # if observed_length == 1 and true_length > 2:
-    #     bases = [p.base for p in observed_pileup]
-    #     lengths = [p.length for p in observed_pileup]
-    #     counts = [p.count for p in observed_pileup]
-    #     reversals = [p.reversal for p in observed_pileup]
-    #     observations = list(zip(lengths, counts, bases, reversals))
-    #     observations = sorted(observations, key=lambda x: x[0])
-    #     print(true_base, read_consensus_base, true_length, read_consensus_length, [[l] * c for l, c, b, r in observations])
-    #     print(true_base, read_consensus_base, true_length, read_consensus_length, [[b] * c for l, c, b, r in observations])
-    #     # print(true_base, read_consensus_base, true_length, read_consensus_length, [[int(r)] * c for l, c, b, r in observations])
 
     for item in observed_pileup:
         observed_length = item.length
@@ -65,8 +46,6 @@ def update_frequency_matrix(observed_pileup, read_consensus_base, read_consensus
 
         if observed_base == read_consensus_base:
             matrix[int(item.reversal), true_base_index, true_length, observed_length] += count
-
-        # matrix[int(item.reversal), base_index, true_length, observed_length] += count
 
     return
 
@@ -137,13 +116,14 @@ def parse_match(alignment_position, length, read_sequence, read_consensus_length
 
         observed_pileup = observed_pileup_segment[i-alignment_position]
 
-        update_frequency_matrix(observed_pileup=observed_pileup,
-                                read_consensus_base=read_base,
-                                read_consensus_length=read_consensus_length,
-                                true_base=ref_base,
-                                true_length=ref_runlength,
-                                alignment_reversal=reversal_status,
-                                matrix=matrix)
+        if ref_base in BASE_TO_INDEX:
+            update_frequency_matrix(observed_pileup=observed_pileup,
+                                    read_consensus_base=read_base,
+                                    read_consensus_length=read_consensus_length,
+                                    true_base=ref_base,
+                                    true_length=ref_runlength,
+                                    alignment_reversal=reversal_status,
+                                    matrix=matrix)
 
     return
 
