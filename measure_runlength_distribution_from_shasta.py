@@ -3,6 +3,7 @@ from handlers.FastaHandler import FastaHandler
 from handlers.BamHandler import BamHandler
 from modules.align import align_minimap
 from modules.matrix import *
+import argparse
 import numpy
 import copy
 import sys
@@ -470,20 +471,9 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
     return output_bam_file_path
 
 
-def main():
-    # ref_fasta_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_14_18_19_4_215702_ref.fasta"
-    # runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_14_18_19_4_215702_runnie.out"
-
-    # E. COLI rad2
-    ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    # shasta_path = "/home/ryan/code/runlength_analysis/data/shasta_coverage_data_ecoli_60x_train.csv"
-    shasta_paths = ["/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/run_2019_4_11_14_14_56_332088/0.csv",
-                    "/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/run_2019_4_11_14_14_56_332088/1.csv",
-                    "/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/run_2019_4_11_14_14_56_332088/2.csv"]
-
-    # HUMAN
-    # ref_fasta_path = "/home/ryan/data/GIAB/GRCh38_WG.fa"
-    # shasta_path = "/home/ryan/code/runlength_analysis/data/shasta_coverage_data_chr11_GM24143_subsample_20.csv"
+def main(ref_fasta_path, shasta_parent_dir):
+    shasta_paths = FileManager.get_all_file_paths_by_type(parent_directory_path=shasta_parent_dir,
+                                                          file_extension=".csv")
 
     output_parent_dir = "output/"
     output_dir = "runlength_matrix_from_shasta_output_" + FileManager.get_datetime_string()
@@ -574,4 +564,35 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    '''
+    Processes arguments and performs tasks to generate the pileup.
+    '''
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--ref",
+        type=str,
+        required=True,
+        help="file path of FASTA reference sequence"
+    )
+    parser.add_argument(
+        "--shasta",
+        type=str,
+        required=False,
+        help="directory path containing shasta csv files and NO OTHER csv files"
+    )
+
+    args = parser.parse_args()
+
+    main(ref_fasta_path=args.ref, shasta_parent_dir=args.shasta)
+
+"""
+    # E. COLI rad2
+    # ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
+    # shasta_path = "/home/ryan/code/runlength_analysis/data/shasta_coverage_data_ecoli_60x_train.csv"
+
+    # shasta_parent_dir = "/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/"
+    # shasta_paths = ["/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/run_2019_4_11_14_14_56_332088/0.csv",
+    #                 "/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/run_2019_4_11_14_14_56_332088/1.csv",
+    #                 "/home/ryan/software/shasta/output/new_ecoli_flappie_last_410k/run_2019_4_11_14_14_56_332088/2.csv"]
+
+"""
