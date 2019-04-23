@@ -167,6 +167,34 @@ class PileupGenerator:
             previous_length = self.positional_insert_lengths[position]
             self.positional_insert_lengths[position] = max(previous_length, length)
 
+    @staticmethod
+    def complement_base(base):
+        complement = None
+
+        if base == "A":
+            complement = "T"
+        elif base == "T":
+            complement = "A"
+        elif base == "C":
+            complement = "G"
+        elif base == "G":
+            complement = "C"
+        else:
+            exit("ERROR: invalid base has no complement: %s" % base)
+
+        return complement
+
+    @staticmethod
+    def reverse_complement(sequence):
+        reverse_sequence = list()
+
+        for i in reversed(range(len(sequence))):
+            reverse_sequence.append(PileupGenerator.complement_base(sequence[i]))
+
+        reverse_sequence = "".join(reverse_sequence)
+
+        return reverse_sequence
+
     def get_aligned_segment_from_read(self, read):
         """
         :param read:
@@ -182,6 +210,7 @@ class PileupGenerator:
         read_sequence = self.read_data[read_id][SEQUENCE]
 
         if reversal:
+            read_sequence = self.reverse_complement(read_sequence)
             read_lengths = list(reversed(read_lengths))
 
         # Check for hardclips
@@ -264,7 +293,12 @@ class PileupGenerator:
 
                     else:
                         # Forget reads that end/start in the middle of the window
-                        del self.aligned_sequences[read_id]
+                        if read_id in self.aligned_sequences:
+                            del self.aligned_sequences[read_id]
+
+                        if read_id in self.sequences:
+                            del self.sequences[read_id]
+                            del self.lengths[read_id]
 
                 break
 

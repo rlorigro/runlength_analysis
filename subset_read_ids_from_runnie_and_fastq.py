@@ -172,6 +172,17 @@ def main():
                                                                    runnie_path=runnie_test_subset_path)
 
 
+def read_names_from_runnie(runnie_path):
+    runnie_handler = RunlengthHandler(runnie_path)
+    runnie_iterator = runnie_handler.iterate_read_names(print_status=True)
+
+    names = set()
+    for n, name in enumerate(runnie_iterator):
+        names.add(name)
+
+    return names
+
+
 def find_runnie_read_line_number(runnie_path, read_id):
     # runnie_path = "/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_all.out"
 
@@ -210,17 +221,21 @@ def print_file_lines(file_path, start, stop):
 if __name__ == "__main__":
     # main()
 
-    # names = read_names_from_fastq("/home/ryan/data/Nanopore/ecoli/miten/guppy/r94_ec_rad2_VS_refEcoli_region_0to10k.fastq")
     # runnie_path = "/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_all.out"
-    # output_dir = "/home/ryan/code/runlength_analysis/data/"
-    # output_filename_suffix = "test_flipflop_regional_0to10k"
+
+    names = read_names_from_runnie("/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/runnie_subset_train_60x_10kb.out")
+    fastq_path = "/home/ryan/data/Nanopore/ecoli/guppy/r94_ec_guppy_rad2.fastq"
+    output_dir = "/home/ryan/code/runlength_analysis/data/"
+    output_filename_suffix = "ecoli_guppy-runnie_60x_train"
+    extract_fastq_reads_by_name(fastq_path, output_dir, output_filename_suffix, names)
+
     # extract_runnie_reads_by_name(runnie_path, output_dir, output_filename_suffix, names)
 
-    find_runnie_read_line_number(runnie_path="/home/ryan/code/runlength_analysis/data/runnie_subset_test_flipflop_regional_0to10k.out",
-                                 read_id="b67b7dad-97cd-4cee-a222-0263df85e612")
-
-    find_runnie_read_line_number(runnie_path="/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_all.out",
-                                 read_id="b67b7dad-97cd-4cee-a222-0263df85e612")
+    # find_runnie_read_line_number(runnie_path="/home/ryan/code/runlength_analysis/data/runnie_subset_test_flipflop_regional_0to10k.out",
+    #                              read_id="b67b7dad-97cd-4cee-a222-0263df85e612")
+    #
+    # find_runnie_read_line_number(runnie_path="/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_all.out",
+    #                              read_id="b67b7dad-97cd-4cee-a222-0263df85e612")
 
     # find_fastq_read_line_number()
 

@@ -36,7 +36,7 @@ class FastqHandler:
         n_found = 0
         for l, line in enumerate(file):
             # Header
-            if line[0] % 4 == 0:
+            if l % 4 == 0:
                 n_sequences += 1
 
                 if valid_read and len(read_lines) > 0:

@@ -237,7 +237,7 @@ def main():
     # matrix_path = "/home/ryan/code/runnie_parser/output/runlength_matrix_from_assembly_contigs_2019_3_19_13_29_14_657613/probability_matrices_2019_3_19_13_29_19_362916.csv"
 
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    read_fasta_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/sequence_subset_test_60x_10kb.fasta"
+    read_fasta_path = "/home/ryan/code/runlength_analysis/data/sequence_subset_ecoli_guppy-runnie_60x_test.fastq"
     matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_sequence_2019_4_5_15_29_28_403950/probability_matrices_2019_4_5_15_35_57_920301.csv"
 
     output_parent_dir = "output/"

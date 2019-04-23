@@ -479,7 +479,7 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
 
 def main():
     ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    read_fasta_path = "/home/ryan/code/shasta-fork/shasta/output/run_2019_4_22_ecoli_last410k_median/Assembly.fasta"
+    read_fasta_path = "/home/ryan/code/runlength_analysis/data/sequence_subset_ecoli_guppy-runnie_60x_train.fastq"
     # read_fasta_path = "/home/ryan/code/nanopore_assembly_and_polishing_assessment/output/ecoli_flipflop_60x/4x/polished_racon_03_22_19_R941_gEcoli_last_410k_4x.fasta"
     # read_fasta_path = "/home/ryan/data/Nanopore/Human/agbt/GM24143/postLargeRleUpdate.fa"
     # read_fasta_path = "/home/ryan/data/Nanopore/Human/agbt/GM24143/preRleUpdate.fa"
@@ -490,7 +490,7 @@ def main():
     # read_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_reads.fasta"
     # -------------------
 
-    output_parent_dir = "output/shasta_median_test_ecoli"
+    output_parent_dir = "output/"
     output_dir = "runlength_matrix_from_sequence_" + FileManager.get_datetime_string()
     output_dir = os.path.join(output_parent_dir, output_dir)
     FileManager.ensure_directory_exists(output_dir)

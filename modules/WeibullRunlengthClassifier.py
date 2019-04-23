@@ -6,6 +6,7 @@ from discrete_weibull_distribution import evaluate_discrete_weibull
 from modules.matrix import normalize
 from matplotlib import pyplot
 import numpy
+import math
 
 
 numpy.set_printoptions(precision=9, linewidth=sys.maxsize, suppress=True, threshold=sys.maxsize)
@@ -208,7 +209,25 @@ class RunlengthClassifier:
 
         return unique, bincount, reversal
 
-    def predict(self, character_index, x_scales, x_shapes, reversal, randomize_reversal=False):
+    def plot_inference(self, observations, cutoff=None):
+        if cutoff is None:
+            n_observations = len(observations)
+        else:
+            n_observations = min(len(observations), cutoff)
+
+        figure, axes = pyplot.subplots(nrows=n_observations)
+
+        for i in range(n_observations):
+            scale, shape, distribution = observations[i]
+            print(scale, shape, distribution[:8])
+            axes[i].imshow(numpy.atleast_2d(distribution))
+
+        pyplot.show()
+        pyplot.close()
+
+        return
+
+    def predict(self, character_index, x_scales, x_shapes, reversal, randomize_reversal=False, prior=False):
         """
         for a vector of observations x, find the product of likelihoods p(x_i|y_j) for x_i in x, for all possible Y
         values, and return the maximum value
@@ -230,12 +249,22 @@ class RunlengthClassifier:
         log_likelihood_y = numpy.zeros([MAX_RUNLENGTH, 1])
 
         for y_j in range(0, MAX_RUNLENGTH):
-            # initialize log likelihood for this (jth) y value
-            log_sum = 0
+            # initialize log likelihood for this (jth) y value, use prior if specified
+            if prior:
+                log_sum = math.log(3.5, 10)*y_j if y_j > 0 else -1e9
+            else:
+                log_sum = 0
 
+            observations = list()
             for i in range(x_scales.shape[0]):
+                if x_scales[i] < 0 and x_shapes[i] < 0:
+                    continue
+
                 # each observation contains a distribution over x
                 x_i_weibull = evaluate_discrete_weibull(scale=x_scales[i], shape=x_shapes[i], x=x_range)
+
+                observations.append([x_scales[i], x_shapes[i], x_i_weibull])
+
                 x_i_weibull = numpy.log10(x_i_weibull)
 
                 # iterate x values, summing log likelihood for every p(x_i|y_j)
@@ -244,11 +273,12 @@ class RunlengthClassifier:
                 # convert to indices
                 y_j = int(y_j)
 
+                # complement character if the pileup contains a reversed strand
                 if r_i:
                     character_index = 3 - character_index
 
                 # retrieve conditional probability for this x|y
-                prob_x_i_given_y_j = self.probability_matrices[character_index, y_j, :]+x_i_weibull
+                prob_x_i_given_y_j = self.probability_matrices[character_index, y_j, :] + x_i_weibull
 
                 # print(r_i, x_i, y_j, prob_x_i_given_y_j, 10**prob_x_i_given_y_j)
 
@@ -261,6 +291,8 @@ class RunlengthClassifier:
 
             # store result of log sum of likelihoods
             log_likelihood_y[y_j,0] = log_sum
+
+        # self.plot_inference(observations, cutoff=10)
 
         j_max = numpy.argmax(log_likelihood_y) + 1  # weibull runlength is 0 based, should be 1 based
 
