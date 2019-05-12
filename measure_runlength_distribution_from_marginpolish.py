@@ -9,6 +9,7 @@ import numpy
 import copy
 import sys
 import os
+from multithread import *
 
 MAX_RUNLENGTH = 50
 
@@ -452,13 +453,7 @@ def runlength_encode_fasta(fasta_sequence_path):
 
 
 def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_reads_path, runlength_reads_sequences, output_dir, max_threads):
-    print("SAVING run length fasta file:", runlength_reference_path)
     print("SAVING run length fasta file:", runlength_reads_path)
-
-    with open(runlength_reference_path, "w") as file:
-        for contig_name in runlength_ref_sequences:
-            file.write(">"+contig_name+" RLE\n")
-            file.write(runlength_ref_sequences[contig_name][SEQUENCE] + "\n")
 
     with open(runlength_reads_path, "w") as file:
         for contig_name in runlength_reads_sequences:
@@ -475,7 +470,7 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
     return output_bam_file_path
 
 
-def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path):  #, all_matrices, counter):
+def parse_coverage_data(output_dir, marginpolish_path, runlength_ref_sequences, runlength_ref_fasta_path):  #, all_matrices, counter):
     reads_fasta_filename_prefix = ".".join(os.path.basename(marginpolish_path).split(".")[:-1])
     runlength_reads_fasta_filename = reads_fasta_filename_prefix + "_rle.fasta"
     runlength_reads_fasta_path = os.path.join(output_dir, runlength_reads_fasta_filename)
@@ -487,10 +482,6 @@ def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength
     name, read = shasta_handler.get_pileup_data(cutoff=sys.maxsize)
 
     read_data = {name: read}
-
-    # print("\nRLE encoding reference sequence...")
-
-    runlength_ref_sequences = runlength_encode_fasta(fasta_sequence_path=ref_fasta_path)
 
     reads_vs_ref_bam_path = align_as_RLE(runlength_reference_path=runlength_ref_fasta_path,
                                          runlength_ref_sequences=runlength_ref_sequences,
@@ -515,31 +506,113 @@ def parse_coverage_data(output_dir, marginpolish_path, ref_fasta_path, runlength
         matrix.dump(numpy_file_path)
 
 
-def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
+def run_length_tsv_service(work_queue, done_queue, service_name="run_length_tsv_service", true_ref_location=None):
+    # prep
+    total_handled = 0
+    failure_count = 0
+
+    assert true_ref_location is not None
+    runlength_ref_sequences = runlength_encode_fasta(fasta_sequence_path=true_ref_location)
+
+    #catch overall exceptions
+    try:
+        for f in iter(work_queue.get, 'STOP'):
+            # catch exceptions on each element
+            try:
+                # logging
+                print("[{}] '{}' processing {}".format(service_name, current_process().name, f))
+
+                output_dir = f['output_dir']
+                tsv_loc = f['tsv_loc']
+                runlength_ref_fasta_path = f['runlength_ref_fasta_path']
+                try:
+                    parse_coverage_data(output_dir, tsv_loc, runlength_ref_sequences, runlength_ref_fasta_path)
+                finally:
+                    filename_prefix = os.path.join(output_dir, "_".join(os.path.basename(tsv_loc).split(".")[:-1]))
+                    ref_sequence_filename_prefix = "_".join(os.path.basename(runlength_ref_fasta_path).split(".")[:-1])
+                    file_suffixes = ["_rle_VS_" + ref_sequence_filename_prefix + bam_tmp for bam_tmp in
+                                     ['.sam', '.sorted.bam', '.sorted.bam.bai', '.sorted.sam']]
+                    tmp_files = [filename_prefix + x for x in file_suffixes]
+                    tmp_files.append(os.path.join(output_dir, ".".join(os.path.basename(tsv_loc).split(".")[:-1])) + "_rle.fasta")
+                    for tmp_file in tmp_files:
+                        if os.path.isfile(tmp_file):
+                            os.remove(tmp_file)
+
+
+            except Exception as e:
+                # get error and log it
+                message = "{}:{}".format(type(e), str(e))
+                error = "{} '{}' failed with: {}".format(service_name, current_process().name, message)
+                print("[{}] ".format(service_name) + error)
+                done_queue.put(error)
+                failure_count += 1
+
+            # increment total handling
+            total_handled += 1
+
+    except Exception as e:
+        # get error and log it
+        message = "{}:{}".format(type(e), str(e))
+        error = "{} '{}' critically failed with: {}".format(service_name, current_process().name, message)
+        print("[{}] ".format(service_name) + error)
+        done_queue.put(error)
+
+    finally:
+        # logging and final reporting
+        print("[%s] '%s' completed %d calls with %d failures"
+              % (service_name, current_process().name, total_handled, failure_count))
+        done_queue.put("{}:{}".format(TOTAL_KEY, total_handled))
+        done_queue.put("{}:{}".format(FAILURE_KEY, failure_count))
+
+
+
+def main(ref_fasta_path, marginpolish_parent_dir, max_threads, output_parent_dir):
     marginpolish_paths = FileManager.get_all_file_paths_by_type(parent_directory_path=marginpolish_parent_dir,
                                                                 file_extension=".tsv")
 
     if max_threads is None:
         max_threads = max(1, cpu_count() - 2)
 
-    output_parent_dir = "output/"
+
     output_dir = "runlength_matrix_from_marginpolish_output_" + FileManager.get_datetime_string()
     output_dir = os.path.join(output_parent_dir, output_dir)
     FileManager.ensure_directory_exists(output_dir)
 
+    # get ref name and location
     ref_fasta_filename_prefix = ".".join(os.path.basename(ref_fasta_path).split(".")[:-1])
     runlength_ref_fasta_filename = ref_fasta_filename_prefix + "_rle.fasta"
     runlength_ref_fasta_path = os.path.join(output_dir, runlength_ref_fasta_filename)
 
-    process_arguments = list()
-    for marginpolish_path in marginpolish_paths:
-        process_arguments.append([output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path])
+    # get ref sequences, write for aligner
+    runlength_ref_sequences = runlength_encode_fasta(fasta_sequence_path=ref_fasta_path)
+    print("SAVING run length fasta file:", runlength_ref_fasta_path)
+    with open(runlength_ref_fasta_path, "w") as file:
+        for contig_name in runlength_ref_sequences:
+            file.write(">"+contig_name+" RLE\n")
+            file.write(runlength_ref_sequences[contig_name][SEQUENCE] + "\n")
 
-    if max_threads > len(process_arguments):
-        max_threads = len(process_arguments)
+    ### old code
+    # process_arguments = list()
+    # for marginpolish_path in marginpolish_paths:
+    #     process_arguments.append([output_dir, marginpolish_path, ref_fasta_path, runlength_ref_fasta_path])
+    #
+    # if max_threads > len(process_arguments):
+    #     max_threads = len(process_arguments)
+    #
+    # with Pool(processes=max_threads, maxtasksperchild=5) as pool:
+    #     pool.starmap(parse_coverage_data, process_arguments, chunksize=1)
 
-    with Pool(processes=max_threads, maxtasksperchild=5) as pool:
-        pool.starmap(parse_coverage_data, process_arguments, chunksize=1)
+    ### new code
+
+    service_arguments = {'true_ref_location': ref_fasta_path}
+    iterable_arguments = {
+        'output_dir': output_dir,
+        'runlength_ref_fasta_path': runlength_ref_fasta_path
+    }
+
+    total, failure, messages = run_service(run_length_tsv_service, marginpolish_paths, iterable_arguments, 'tsv_loc',
+                                           max_threads, service_arguments)
+    print("Had {} failures out of {} MP TSV consolidations".format(failure, total))
 
     matrix_file_paths = FileManager.get_all_file_paths_by_type(parent_directory_path=output_dir,
                                                                file_extension=".pkl")
@@ -567,6 +640,12 @@ def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
                                                           diagonal_bias=0,
                                                           plot=False,
                                                           default_type=float)
+
+    save_directional_frequency_matrices_as_marginPolish_params(output_dir=output_dir,
+                                                               frequency_matrices=matrix,
+                                                               chromosome_name="genomic",
+                                                               pseudocount=15,
+                                                               diagonal_bias=0)
 
     nondirectional_matrix = sum_complementary_matrices(matrix, max_runlength=MAX_RUNLENGTH)
 
@@ -606,6 +685,13 @@ if __name__ == "__main__":
         help="file path of FASTA reference sequence file"
     )
     parser.add_argument(
+        "--output_dir",
+        type=str,
+        required=False,
+        default="output",
+        help="base directory for output"
+    )
+    parser.add_argument(
         "--max_threads", "-t",
         type=int,
         required=False,
@@ -613,7 +699,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    main(ref_fasta_path=args.ref, marginpolish_parent_dir=args.input_dir, max_threads=args.max_threads)
+    main(ref_fasta_path=args.ref, marginpolish_parent_dir=args.input_dir, max_threads=args.max_threads,
+         output_parent_dir=args.output_dir)
 
 
 """

@@ -370,7 +370,9 @@ def normalize(frequency_matrix, pseudocount, diagonal_bias=0):
     return probability_matrix
 
 
-def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, chromosome_name=None, delimiter=",", log_normalize=False, plot=False, pseudocount=0, diagonal_bias=0, default_type=int):
+def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, chromosome_name=None,
+                                                          delimiter=",", log_normalize=False, plot=False, pseudocount=0,
+                                                          diagonal_bias=0, default_type=int):
     if chromosome_name is not None:
         name_suffix = chromosome_name + "_"
     else:
@@ -422,6 +424,46 @@ def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_
             file.write("\n")
 
     file.close()
+
+
+def save_directional_frequency_matrices_as_marginPolish_params(output_dir, frequency_matrices, chromosome_name=None,
+                                                               pseudocount=0, diagonal_bias=0, default_type=int):
+    if chromosome_name is not None:
+        name_suffix = chromosome_name + "_"
+    else:
+        name_suffix = ""
+
+    filename = "probability_matrices_directional_" + name_suffix + FileManager.get_datetime_string() + ".marginPolishParams.json"
+
+    reversal_suffixes = ["F", "R"]
+    output_path = os.path.join(output_dir, filename)
+
+    print("SAVING: %s" % output_path)
+
+    with open(output_path, "w") as file:
+        file.write('"repeatCountSubstitutionMatrix": {\n')
+
+        for reversal in [0,1]:
+            for base_index in range(4):
+                base = INDEX_TO_BASE[base_index]
+                direction_char = reversal_suffixes[reversal]
+
+                matrix = numpy.squeeze(frequency_matrices[reversal,base_index,:,:])
+                matrix = normalize(matrix, pseudocount=pseudocount, diagonal_bias=diagonal_bias)
+                type = float
+
+                matrix_name = "_".join([base, direction_char])
+
+                # print(type)
+                file.write('\t"repeatCountLogProbabilities_{}": ['.format(matrix_name))
+                values = []
+                for r in range(matrix.shape[0]):
+                    row = [str(type(x)) for x in matrix[r]]
+                    values.extend(row)
+
+                file.write("\t\t" + ", ".join(values) + "\n\t],\n")
+
+        file.write("}\n")
 
 
 def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, chromosome_name=None, delimiter=",", log_normalize=False, pseudocount=1e-12, diagonal_bias=0, plot=False, default_type=int):
