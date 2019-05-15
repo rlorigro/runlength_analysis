@@ -288,10 +288,10 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
     axes[1][0].set_ylabel("True length")
     axes[0][0].set_ylabel("True length")
 
-    axes[1][1].set_yticks(numpy.arange(0,cutoff, 2))
-    axes[1][0].set_yticks(numpy.arange(0,cutoff, 2))
-    axes[0][0].set_yticks(numpy.arange(0,cutoff, 2))
-    axes[0][1].set_yticks(numpy.arange(0,cutoff, 2))
+    axes[1][1].set_yticks(numpy.arange(0, cutoff, 2))
+    axes[1][0].set_yticks(numpy.arange(0, cutoff, 2))
+    axes[0][0].set_yticks(numpy.arange(0, cutoff, 2))
+    axes[0][1].set_yticks(numpy.arange(0, cutoff, 2))
 
     axes[1][1].set_xticks(numpy.arange(0, cutoff, 2))
     axes[1][0].set_xticks(numpy.arange(0, cutoff, 2))
@@ -300,6 +300,22 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
 
     pyplot.show()
     pyplot.close()
+
+
+def get_marginal_distribution_from_frequency_matrix(matrix, normalize=True):
+    print(matrix.shape)
+
+    matrix = numpy.sum(matrix, axis=0)
+    print(matrix.shape)
+
+    matrix = numpy.sum(matrix, axis=1)
+    print(matrix.shape)
+
+    if normalize:
+        total = numpy.sum(matrix)
+        matrix = matrix/total
+
+    return matrix
 
 
 def sum_complementary_matrices(directional_matrices, max_runlength):
@@ -405,7 +421,7 @@ def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_
                 pyplot.close()
 
             matrix_name = "_".join([base, suffix])
-            header = ">" + matrix_name + "\n"
+            header = ">" + matrix_name + " likelihood\n"
 
             # print(type)
             file.write(header)

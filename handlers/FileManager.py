@@ -119,15 +119,13 @@ class FileManager:
 
     @staticmethod
     def save_object_pickle(output_dir, filename, object):
-        array_file_extension = ".pkl"
+        file_extension = ".pkl"
 
-        # ensure chromosomal directory exists
-        if not exists(output_dir):
-            FileManager.ensure_directory_exists(output_dir)
+        FileManager.ensure_directory_exists(output_dir)
 
         output_path_prefix = join(output_dir, filename)
 
-        output_path = output_path_prefix + array_file_extension
+        output_path = output_path_prefix + file_extension
 
         with open(output_path, 'wb') as output:
             pickle.dump(object, output, pickle.HIGHEST_PROTOCOL)

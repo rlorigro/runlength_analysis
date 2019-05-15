@@ -6,11 +6,14 @@ import sys
 class Read:
     def __init__(self, read_id, sequence, scales, shapes):
         self.id = read_id
-        self.sequence = ''.join(sequence)
         self.scales = scales
         self.shapes = shapes
         self.length = len(sequence)
 
+        if type(sequence) is list:
+            self.sequence = ''.join(sequence)
+        else:
+            self.sequence = sequence
 
 class RunlengthHandler:
     def __init__(self, path):
