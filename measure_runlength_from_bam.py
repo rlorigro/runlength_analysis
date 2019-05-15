@@ -37,16 +37,16 @@ def print_all_counts(all_counts):
             print("%d %d" % (item[0], item[1]))
 
 
-def main(bam_file_path, cutoff):
+def main(bam_file_path, cutoff, contig_name):
     # ---- GIAB E. Coli - (dev machine) ---------------------------------------
     # bam_file_path = "/home/ryan/data/GIAB/GRCh38_WG.fa"
     # bam_file_path = "/home/ryan/data/Nanopore/ecoli/flapppie/03_22_19_R941_gEcoli_first_410k_VS_refEcoli.sorted.bam"
     # -------------------------------------------------------------------------
 
-    chromosome_name = "gi"
+    contig_name = "gi"
 
     bam_handler = BamHandler(bam_file_path)
-    reads = bam_handler.get_reads(chromosome_name=chromosome_name, start=None, stop=None)
+    reads = bam_handler.get_reads(chromosome_name=contig_name, start=None, stop=None)
 
     all_counts = defaultdict(lambda: Counter())
 
@@ -108,6 +108,12 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="path to directory containing marginpolish TSV files"
+    )
+    parser.add_argument(
+        "--contig",
+        type=str,
+        required=True,
+        help="name of contig from which to fetch reads from BAM file"
     )
     parser.add_argument(
         "--cutoff",
