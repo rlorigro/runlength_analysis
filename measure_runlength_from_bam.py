@@ -38,7 +38,7 @@ def print_all_counts(all_counts):
 
 
 def main(bam_file_path, cutoff):
-    # ---- GIAB E. Coli - (dev machine) -------------------------
+    # ---- GIAB E. Coli - (dev machine) ---------------------------------------
     # bam_file_path = "/home/ryan/data/GIAB/GRCh38_WG.fa"
     # bam_file_path = "/home/ryan/data/Nanopore/ecoli/flapppie/03_22_19_R941_gEcoli_first_410k_VS_refEcoli.sorted.bam"
     # -------------------------------------------------------------------------
@@ -64,7 +64,7 @@ def main(bam_file_path, cutoff):
         if c % 100 == 0:
             sys.stderr.write("\rParsed %d reads" % c)
 
-        if c > 10000:
+        if c > cutoff:
             break
 
         sequence = read.query_sequence
