@@ -124,4 +124,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(bam_file_path=args.bam, cutoff=args.cutoff)
+    main(bam_file_path=args.bam, cutoff=args.cutoff, contig_name=args.contig)
