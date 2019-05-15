@@ -413,22 +413,32 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, reads_vs_re
 
 
 def runlength_encode(sequence):
-    character_sequence = list()
-    character_counts = list()
-    current_character = None
 
+    current_character = None
+    rle_size = 0
     for character in sequence:
         if character != current_character:
-            character_sequence.append(character)
-            character_counts.append(1)
+            rle_size += 1
+        current_character = character
+    rle_size += 1
+
+    character_sequence = numpy.empty([rle_size], dtype='str')
+    character_counts = numpy.empty([rle_size], dtype='uint8')
+    current_character = None
+    rle_idx = -1
+    for character in sequence:
+        if character != current_character:
+            rle_idx += 1
+            character_sequence[rle_idx] = character
+            character_counts[rle_idx] = numpy.uint8(1)
         else:
-            character_counts[-1] += 1
+            character_counts[rle_idx] = min(numpy.uint8(255), character_counts[rle_idx] + numpy.uint8(1))
 
         current_character = character
 
-    character_sequence = ''.join(character_sequence)
+    character_sequence = ''.join(character_sequence.tolist())
 
-    return character_sequence, character_counts
+    return character_sequence, character_counts.tolist()
 
 
 def runlength_encode_fasta(fasta_sequence_path):

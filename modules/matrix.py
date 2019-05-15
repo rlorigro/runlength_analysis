@@ -455,7 +455,7 @@ def save_directional_frequency_matrices_as_marginPolish_params(output_dir, frequ
                 matrix_name = "_".join([base, direction_char])
 
                 # print(type)
-                file.write('\t"repeatCountLogProbabilities_{}": ['.format(matrix_name))
+                file.write('\t"repeatCountLogProbabilities_{}": [\n'.format(matrix_name))
                 values = []
                 for r in range(matrix.shape[0]):
                     row = [str(type(x)) for x in matrix[r]]
