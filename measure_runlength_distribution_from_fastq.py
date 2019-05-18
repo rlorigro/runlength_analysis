@@ -653,41 +653,19 @@ def measure_runlength_distribution(ref_fasta_path, read_fasta_path, output_paren
                                                              plot=False)
 
 
-def main():
-    ref_fasta_path = "/home/ryan/data/GIAB/GRCh38_WG.fa"
+def main(output_dir, read_fastq_path, ref_fasta_path):
+    if output_dir is None:
+        output_dir = "output/"
 
-    # read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_assembly_HG00733.fasta",
-    #                     "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/marginpolish_confusion/GM24385.shasta.marginPolish.190515.fa",
-    #                     "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/helen_confusion/HG00733_shasta_marginpolish_helen_consensus.fasta"]
-    #
-    # output_dirs = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/shasta/",
-    #                "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/marginpolish/",
-    #                "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/helen/"]
-
-    # read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_assembly_HG00733.fasta",
-
-    read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_marginpolish_assembly_HG00733.fasta"]
-
-    output_dirs = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/marginpolish_00733/"]
-
-    if len(output_dirs) != len(read_fasta_paths):
-        exit("Each input must have an output dir specified")
-
-    # ---- TEST DATA ----
-    # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_ref.fasta"
-    # read_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_reads.fasta"
-    # -------------------
-
-    for i, read_fasta_path in enumerate(read_fasta_paths):
-        measure_runlength_distribution(ref_fasta_path=ref_fasta_path,
-                                       read_fasta_path=read_fasta_path,
-                                       output_parent_dir=output_dirs[i])
+    measure_runlength_distribution(ref_fasta_path=ref_fasta_path,
+                                   read_fasta_path=read_fastq_path,
+                                   output_parent_dir=output_dir)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--fastq", "-i",
+        "--sequences", "-i",
         type=str,
         required=True,
         help="path to fastq file"
@@ -699,11 +677,12 @@ if __name__ == "__main__":
         help="file path of FASTA reference sequence file"
     )
     parser.add_argument(
-        "--max_threads", "-t",
-        type=int,
+        "--output_dir",
+        type=str,
+        default=None,
         required=False,
-        help="total number of vCPU to allocate to this job"
+        help="path of directory to dump output to"
     )
     args = parser.parse_args()
 
-    main(ref_fasta_path=args.ref, marginpolish_parent_dir=args.input_dir, max_threads=args.max_threads)
+    main(output_dir=args.output_dir, read_fastq_path=args.sequences, ref_fasta_path=args.ref)
