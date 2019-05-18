@@ -1,10 +1,9 @@
-from discrete_weibull_distribution import evaluate_discrete_weibull, calculate_mode
-from handlers.RunlengthHandler import RunlengthHandler
-from handlers.FileManager import FileManager
 from handlers.FastaHandler import FastaHandler
 from handlers.BamHandler import BamHandler
 from modules.align import align_minimap
 from modules.matrix import *
+from multiprocessing import Manager, Pool, cpu_count
+import argparse
 import numpy
 import os
 
@@ -86,8 +85,6 @@ def parse_match(alignment_position, length, read_sequence, observed_lengths, ref
     :param ref_sequence: Reference sequence
     :param length: Length of the operation
     :return:
-
-    This method updates the candidates dictionary.
     """
     start = alignment_position
     stop = start + length
@@ -104,11 +101,13 @@ def parse_match(alignment_position, length, read_sequence, observed_lengths, ref
         try:
             observed_runlength = observed_lengths[i-alignment_position]
 
-            update_frequency_matrix(observed_length=observed_runlength,
-                                    true_base=ref_base,
-                                    true_length=ref_runlength,
-                                    alignment_reversal=reversal_status,
-                                    matrix=matrix)
+            # ignore wacky shit like N,M,R, etc
+            if ref_base in BASE_TO_INDEX:
+                update_frequency_matrix(observed_length=observed_runlength,
+                                        true_base=ref_base,
+                                        true_length=ref_runlength,
+                                        alignment_reversal=reversal_status,
+                                        matrix=matrix)
 
             # print(len(ref_sequence))
             # print(len(read_sequence))
@@ -250,6 +249,8 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_sequences,
             reversal_status = read.is_reverse
             runlength_read = runlength_read_sequences[read_id]
 
+            sys.stderr.write("\rRead parsed: %s                      " % read_id)
+
             if reversal_status:
                 runlength_read = reverse_complement_runlength_read(runlength_read)
 
@@ -338,7 +339,12 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, read_vs_ref
     :return:
     """
 
-    for chromosome_name in runlength_ref_sequences:
+    for chromosome_name in runlength_ref_sequences.keys():
+        allowed_chromosomes = {"chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10"}
+        if chromosome_name not in allowed_chromosomes:
+            print("WARNING: SKIPPING CHROMOSOME %s BECAUSE NOT IN %s" % (chromosome_name, str(allowed_chromosomes)))
+            continue
+
         shape = [2,4,MAX_RUNLENGTH+1,MAX_RUNLENGTH+1]
         matrix = numpy.zeros(shape, dtype=numpy.float64)
 
@@ -367,9 +373,9 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, read_vs_ref
 
 
 def runlength_encode(sequence):
-    character_sequence = list()
-    character_counts = list()
-    current_character = None
+    character_sequence = [numpy.uint8(x) for x in range(0)]
+    character_counts = [numpy.uint8(x) for x in range(0)]
+    current_character = ""
 
     for character in sequence:
         if character != current_character:
@@ -383,6 +389,63 @@ def runlength_encode(sequence):
     character_sequence = ''.join(character_sequence)
 
     return character_sequence, character_counts
+
+
+def runlength_encode_parallel(fasta_sequence_path, contig_name, runlength_sequences, min_length):
+    fasta_handler = FastaHandler(fasta_sequence_path)
+
+    sequence = fasta_handler.get_sequence(chromosome_name=contig_name, start=None, stop=None)
+
+    if len(sequence) < min_length:
+        return
+
+    character_sequence = [numpy.uint8(x) for x in range(0)]
+    character_counts = [numpy.uint8(x) for x in range(0)]
+    current_character = ""
+
+    for character in sequence:
+        if character != current_character:
+            character_sequence.append(character)
+            character_counts.append(1)
+        else:
+            character_counts[-1] += 1
+
+        current_character = character
+
+    character_sequence = ''.join(character_sequence)
+
+    runlength_sequences[contig_name] = (character_sequence, character_counts)
+
+    sys.stderr.write("\rRun length encoded %s            " % contig_name)
+
+
+def runlength_encode_fasta_parallel(fasta_sequence_path, max_threads=None, min_length=0):
+    if min_length > 0:
+        print("WARNING: excluding all sequences less than length %d" % min_length)
+
+    fasta_handler = FastaHandler(fasta_sequence_path)
+
+    contig_names = fasta_handler.get_contig_names()
+
+    manager = Manager()
+    runlength_sequences = manager.dict()
+
+    args = list()
+    for contig_name in contig_names:
+        args.append([fasta_sequence_path, contig_name, runlength_sequences, min_length])
+
+    if max_threads is None:
+        max_threads = max(1, cpu_count() - 2)
+
+    if max_threads > len(args):
+        max_threads = len(args)
+
+    with Pool(processes=max_threads, maxtasksperchild=40) as pool:
+        pool.starmap(runlength_encode_parallel, args, chunksize=1)
+
+    sys.stderr.write("\n")
+
+    return runlength_sequences
 
 
 def runlength_encode_fasta(fasta_sequence_path):
@@ -460,37 +523,32 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
     print("SAVING run length fasta file:", runlength_read_path)
 
     with open(runlength_reference_path, "w") as file:
-        for contig_name in runlength_ref_sequences:
+        for contig_name in runlength_ref_sequences.keys():
             file.write(">"+contig_name+" RLE\n")
             file.write(runlength_ref_sequences[contig_name][SEQUENCE] + "\n")
 
     with open(runlength_read_path, "w") as file:
-        for contig_name in runlength_read_sequences:
+        for contig_name in runlength_read_sequences.keys():
             file.write(">"+contig_name+" RLE\n")
             file.write(runlength_read_sequences[contig_name][SEQUENCE] + "\n")
+
+    k = 19
+
+    print("\nUSING MINIMIZER SIZE K = %d" % k)
+
+    preset = "asm20"
+
+    print("USING PRESET %s" % preset)
 
     output_sam_file_path, output_bam_file_path = align_minimap(output_dir=output_dir,
                                                                ref_sequence_path=runlength_reference_path,
                                                                reads_sequence_path=runlength_read_path,
-                                                               k=18)
+                                                               k=k)
 
     return output_bam_file_path
 
 
-def main():
-    ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    read_fasta_path = "/home/ryan/code/runlength_analysis/data/sequence_subset_ecoli_guppy-runnie_60x_train.fastq"
-    # read_fasta_path = "/home/ryan/code/nanopore_assembly_and_polishing_assessment/output/ecoli_flipflop_60x/4x/polished_racon_03_22_19_R941_gEcoli_last_410k_4x.fasta"
-    # read_fasta_path = "/home/ryan/data/Nanopore/Human/agbt/GM24143/postLargeRleUpdate.fa"
-    # read_fasta_path = "/home/ryan/data/Nanopore/Human/agbt/GM24143/preRleUpdate.fa"
-    # read_fasta_path = "/home/ryan/data/Nanopore/Human/agbt/GM24143/postLargeRleUpdate.fa"
-
-    # ---- TEST DATA ----
-    # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_ref.fasta"
-    # read_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_reads.fasta"
-    # -------------------
-
-    output_parent_dir = "output/"
+def measure_runlength_distribution(ref_fasta_path, read_fasta_path, output_parent_dir="output/", plot=False):
     output_dir = "runlength_matrix_from_sequence_" + FileManager.get_datetime_string()
     output_dir = os.path.join(output_parent_dir, output_dir)
     FileManager.ensure_directory_exists(output_dir)
@@ -503,8 +561,8 @@ def main():
     runlength_read_fasta_filename = read_fasta_filename_prefix + "_rle.fasta"
     runlength_read_fasta_path = os.path.join(output_dir, runlength_read_fasta_filename)
 
-    runlength_ref_sequences = runlength_encode_fasta(fasta_sequence_path=ref_fasta_path)
-    runlength_read_sequences = runlength_encode_fasta(fasta_sequence_path=read_fasta_path)
+    runlength_ref_sequences = runlength_encode_fasta_parallel(fasta_sequence_path=ref_fasta_path)
+    runlength_read_sequences = runlength_encode_fasta_parallel(fasta_sequence_path=read_fasta_path, min_length=10000)
 
     read_vs_ref_bam_path = align_as_RLE(runlength_reference_path=runlength_ref_fasta_path,
                                         runlength_ref_sequences=runlength_ref_sequences,
@@ -517,7 +575,10 @@ def main():
                                                                runlength_ref_sequences=runlength_ref_sequences,
                                                                runlength_read_sequences=runlength_read_sequences)
 
+    all_matrices = list()
     for chromosome_name, matrix in chromosomal_matrices:
+        all_matrices.append(matrix)
+
         save_directional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                               frequency_matrices=matrix,
                                                               chromosome_name=chromosome_name,
@@ -553,10 +614,108 @@ def main():
         # nonzero_mask = numpy.invert(zero_mask)
         # matrix[zero_mask] += numpy.min(matrix[nonzero_mask])
 
-        plot_directional_complementary_diff(matrix, max_runlength=MAX_RUNLENGTH)
-        plot_base_matrices(matrix, test_spot=False, normalize_matrices=False)
-        plot_base_matrices(matrix, test_spot=False, normalize_matrices=True)
+        if plot:
+            plot_directional_complementary_diff(matrix, max_runlength=MAX_RUNLENGTH)
+            plot_base_matrices(matrix, test_spot=False, normalize_matrices=False)
+            plot_base_matrices(matrix, test_spot=False, normalize_matrices=True)
+
+    matrix = numpy.stack(all_matrices, axis=0)
+    matrix = numpy.sum(matrix, axis=0)
+
+    save_directional_frequency_matrices_as_delimited_text(output_dir=output_dir,
+                                                          frequency_matrices=matrix,
+                                                          chromosome_name="genomic",
+                                                          log_normalize=False,
+                                                          diagonal_bias=0,
+                                                          plot=False,
+                                                          default_type=float)
+
+    save_directional_frequency_matrices_as_delimited_text(output_dir=output_dir,
+                                                          frequency_matrices=matrix,
+                                                          chromosome_name="genomic",
+                                                          log_normalize=True,
+                                                          pseudocount=15,
+                                                          diagonal_bias=0,
+                                                          plot=False,
+                                                          default_type=float)
+
+    nondirectional_matrix = sum_complementary_matrices(matrix, max_runlength=MAX_RUNLENGTH)
+
+    save_nondirectional_frequency_matrices_as_delimited_text(output_dir=output_dir,
+                                                             frequency_matrices=nondirectional_matrix,
+                                                             chromosome_name="genomic",
+                                                             log_normalize=False,
+                                                             plot=False)
+
+    save_nondirectional_frequency_matrices_as_delimited_text(output_dir=output_dir,
+                                                             frequency_matrices=nondirectional_matrix,
+                                                             chromosome_name="genomic",
+                                                             log_normalize=True,
+                                                             plot=False)
+
+
+def main(ref_fasta_path, read_fasta_path, output_dir):
+    if output_dir is None:
+        output_dir = "output/"
+
+    measure_runlength_distribution(ref_fasta_path=ref_fasta_path,
+                                   read_fasta_path=read_fasta_path,
+                                   output_parent_dir=output_dir)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--sequences", "-i",
+        type=str,
+        required=True,
+        help="path to fastq file"
+    )
+    parser.add_argument(
+        "--ref",
+        type=str,
+        required=True,
+        help="file path of FASTA reference sequence file"
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        required=False,
+        help="path of directory to dump output to"
+    )
+    args = parser.parse_args()
+
+    main(output_dir=args.output_dir, read_fasta_path=args.sequences, ref_fasta_path=args.ref)
+
+
+"""
+def main():
+    ref_fasta_path = "/home/ryan/data/GIAB/GRCh38_WG.fa"
+
+    # read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_assembly_HG00733.fasta",
+    #                     "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/marginpolish_confusion/GM24385.shasta.marginPolish.190515.fa",
+    #                     "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/helen_confusion/HG00733_shasta_marginpolish_helen_consensus.fasta"]
+    #
+    # output_dirs = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/shasta/",
+    #                "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/marginpolish/",
+    #                "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/helen/"]
+
+    # read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_assembly_HG00733.fasta",
+
+    read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_marginpolish_assembly_HG00733.fasta"]
+
+    output_dirs = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/marginpolish_00733/"]
+
+    if len(output_dirs) != len(read_fasta_paths):
+        exit("Each input must have an output dir specified")
+
+    # ---- TEST DATA ----
+    # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_ref.fasta"
+    # read_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_reads.fasta"
+    # -------------------
+
+    for i, read_fasta_path in enumerate(read_fasta_paths):
+        measure_runlength_distribution(ref_fasta_path=ref_fasta_path,
+                                       read_fasta_path=read_fasta_path,
+                                       output_parent_dir=output_dirs[i])
+"""
