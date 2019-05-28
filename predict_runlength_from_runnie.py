@@ -297,11 +297,7 @@ def main():
     runlength_path = "/home/ryan/code/runlength_analysis/data/runnie_subset_test_flipflop_regional_0to10k.out"
 
     # WG ecoli 60x
-    # matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_ecoli_wg_60x_10kb_train/probability_matrices_2019_3_27_16_48_54_490198.csv"
-    # matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_5_11_16_8_642422/probability_matrices_2019_4_5_11_20_5_66642.csv"
     matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_WG_train_60x_guppy_2019_4_23/probability_matrices_2019_4_23_15_9_14_837893.csv"
-
-    # raw_matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_output_2019_4_8_17_7_56_112544/frequency_matrices_2019_4_8_17_7_56_273747.csv"
     raw_matrix_path = "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_runnie_WG_train_60x_guppy_2019_4_23/frequency_matrices_2019_4_23_15_9_14_833128.csv"
 
     output_parent_dir = "output/"

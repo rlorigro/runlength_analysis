@@ -340,9 +340,14 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, read_vs_ref
     """
 
     for chromosome_name in runlength_ref_sequences.keys():
-        allowed_chromosomes = {"chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10"}
-        if chromosome_name not in allowed_chromosomes:
-            print("WARNING: SKIPPING CHROMOSOME %s BECAUSE NOT IN %s" % (chromosome_name, str(allowed_chromosomes)))
+        # allowed_chromosomes = {"chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10"}
+        # allowed_chromosomes = {"chrX"}
+        # if chromosome_name not in allowed_chromosomes:
+        #     print("WARNING: SKIPPING CHROMOSOME %s BECAUSE NOT IN %s" % (chromosome_name, str(allowed_chromosomes)))
+        #     continue
+
+        if not chromosome_name.startswith("chrX"):
+            print("WARNING: SKIPPING CHROMOSOME %s BECAUSE NOT chrX" % chromosome_name)
             continue
 
         shape = [2,4,MAX_RUNLENGTH+1,MAX_RUNLENGTH+1]
@@ -353,9 +358,9 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, read_vs_ref
         bam_handler = BamHandler(read_vs_ref_bam_path)
         fasta_handler = FastaHandler(runlength_ref_sequence_path)
 
-        chromosome_length = fasta_handler.get_chr_sequence_length(chromosome_name)
+        # chromosome_length = fasta_handler.get_chr_sequence_length(chromosome_name)
 
-        reads = bam_handler.get_reads(chromosome_name=chromosome_name, start=0, stop=chromosome_length)
+        reads = bam_handler.get_reads(chromosome_name=chromosome_name, start=None, stop=None)
 
         n_reads = parse_reads(chromosome_name=chromosome_name,
                               fasta_handler=fasta_handler,
@@ -394,7 +399,12 @@ def runlength_encode(sequence):
 def runlength_encode_parallel(fasta_sequence_path, contig_name, runlength_sequences, min_length):
     fasta_handler = FastaHandler(fasta_sequence_path)
 
-    sequence = fasta_handler.get_sequence(chromosome_name=contig_name, start=None, stop=None)
+    try:
+        sequence = fasta_handler.get_sequence(chromosome_name=contig_name, start=None, stop=None)
+    except ValueError as e:
+        print(e)
+        print("ERROR: pysam fetch failed on contig: %s" % contig_name)
+        return
 
     if len(sequence) < min_length:
         return
@@ -688,34 +698,39 @@ if __name__ == "__main__":
     main(output_dir=args.output_dir, read_fasta_path=args.sequences, ref_fasta_path=args.ref)
 
 
-"""
-def main():
-    ref_fasta_path = "/home/ryan/data/GIAB/GRCh38_WG.fa"
-
-    # read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_assembly_HG00733.fasta",
-    #                     "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/marginpolish_confusion/GM24385.shasta.marginPolish.190515.fa",
-    #                     "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/helen_confusion/HG00733_shasta_marginpolish_helen_consensus.fasta"]
-    #
-    # output_dirs = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/shasta/",
-    #                "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/marginpolish/",
-    #                "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/helen/"]
-
-    # read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_assembly_HG00733.fasta",
-
-    read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_marginpolish_assembly_HG00733.fasta"]
-
-    output_dirs = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/marginpolish_00733/"]
-
-    if len(output_dirs) != len(read_fasta_paths):
-        exit("Each input must have an output dir specified")
-
-    # ---- TEST DATA ----
-    # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_ref.fasta"
-    # read_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_reads.fasta"
-    # -------------------
-
-    for i, read_fasta_path in enumerate(read_fasta_paths):
-        measure_runlength_distribution(ref_fasta_path=ref_fasta_path,
-                                       read_fasta_path=read_fasta_path,
-                                       output_parent_dir=output_dirs[i])
-"""
+# def main():
+#     # ref_fasta_path = "/home/ryan/data/GIAB/GRCh38_WG.fa"
+#     ref_fasta_path = "/home/ryan/data/Nanopore/Human/paolo/LC2019/canu_longranger_assembly_CHM13_serge_prep5_fb.fasta"
+#
+#     # read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_assembly_HG00733.fasta",
+#     #                     "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/marginpolish_confusion/GM24385.shasta.marginPolish.190515.fa",
+#     #                     "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/helen_confusion/HG00733_shasta_marginpolish_helen_consensus.fasta"]
+#     #
+#     # output_dirs = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/shasta/",
+#     #                "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/marginpolish/",
+#     #                "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/helen/"]
+#
+#     # read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/shasta_assembly_HG00733.fasta",
+#
+#     read_fasta_paths = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/CHM13_chrX_shasta_marginpolish_helen_HAPLOID_MODEL.fa",
+#                         "/home/ryan/data/Nanopore/Human/paolo/LC2019/CHM13_shasta_assembly_chrX.fa"]
+#
+#     output_dirs = ["/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/CHM13_kishwar/HELEN_HAPLOID/",
+#                    "/home/ryan/data/Nanopore/Human/paolo/LC2019/runlength/confusion/updated/CHM13_kishwar/Shasta_chrX/"]
+#
+#     if len(output_dirs) != len(read_fasta_paths):
+#         exit("Each input must have an output dir specified")
+#
+#     # ---- TEST DATA ----
+#     # ref_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_ref.fasta"
+#     # read_fasta_path = "/home/ryan/code/runlength_analysis/data/synthetic_runlength_test_2019_3_27_16_34_11_810671_reads.fasta"
+#     # -------------------
+#
+#     for i, read_fasta_path in enumerate(read_fasta_paths):
+#         measure_runlength_distribution(ref_fasta_path=ref_fasta_path,
+#                                        read_fasta_path=read_fasta_path,
+#                                        output_parent_dir=output_dirs[i])
+#
+#
+# if __name__ == "__main__":
+#     main()

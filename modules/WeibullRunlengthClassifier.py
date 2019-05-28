@@ -241,13 +241,22 @@ class RunlengthClassifier:
 
         if randomize_reversal:
             l = reversal.size()
-            print(l)
-            print(reversal)
             reversal = numpy.random.binomial(1, 0.5, l).astype(numpy.bool)
-            print(reversal)
 
         log_likelihood_y = numpy.zeros([MAX_RUNLENGTH, 1])
 
+        # Precompute full distributions for all params in input
+        x_weibull_distributions = list()
+        for i in range(x_scales.shape[0]):
+            if x_scales[i] < 0 and x_shapes[i] < 0:
+                x_i_weibull = None
+            else:
+                # each observation contains a distribution over x
+                x_i_weibull = evaluate_discrete_weibull(scale=x_scales[i], shape=x_shapes[i], x=x_range)
+
+            x_weibull_distributions.append(x_i_weibull)
+
+        # Use weibull distributions for inference
         for y_j in range(0, MAX_RUNLENGTH):
             # initialize log likelihood for this (jth) y value, use prior if specified
             if prior:
@@ -255,15 +264,15 @@ class RunlengthClassifier:
             else:
                 log_sum = 0
 
-            observations = list()
+            # observations = list()
             for i in range(x_scales.shape[0]):
                 if x_scales[i] < 0 and x_shapes[i] < 0:
                     continue
 
                 # each observation contains a distribution over x
-                x_i_weibull = evaluate_discrete_weibull(scale=x_scales[i], shape=x_shapes[i], x=x_range)
+                x_i_weibull = x_weibull_distributions[i]
 
-                observations.append([x_scales[i], x_shapes[i], x_i_weibull])
+                # observations.append([x_scales[i], x_shapes[i], x_i_weibull])
 
                 x_i_weibull = numpy.log10(x_i_weibull)
 

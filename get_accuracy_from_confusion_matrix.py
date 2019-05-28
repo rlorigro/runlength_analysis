@@ -131,13 +131,13 @@ def plot_mean_residual_error(weighted_distances, names):
     pyplot.close()
 
 
-def plot_residual_error(row_centered_confusions, names, y_min, y_max):
+def plot_residual_error(row_centered_confusions, names, y_min, y_max, max_length=10):
     colors = ["blue", "orange"]
 
     axes = pyplot.axes()
 
     for k,key in enumerate(row_centered_confusions):
-        confusions = row_centered_confusions[key][1:10]
+        confusions = row_centered_confusions[key][1:max_length]
         sampled_confusions = list()
 
         for confusion in confusions:
@@ -165,15 +165,31 @@ def plot_residual_error(row_centered_confusions, names, y_min, y_max):
 
     axes.set_yticks(list(range(0, abs(y_max)+abs(y_min))))
     axes.set_yticklabels(list(range(y_min, y_max)))
-    axes.set_ylim([y_max-5,y_max+5])
+    axes.set_ylim([y_max-10,y_max+10])
 
     pyplot.show()
     pyplot.close()
 
 
 def main():
-    csv_paths = ["/home/ryan/code/runlength_analysis/output/shasta_median_test_ecoli/runlength_matrix_ecoli_flipflop_DEFAULT/frequency_matrices_gi_2019_4_22_11_1_7_131658.csv",
-                 "/home/ryan/code/runlength_analysis/output/shasta_median_test_ecoli/runlength_matrix_ecoli_flipflop_MEDIAN/frequency_matrices_gi_2019_4_22_11_2_17_268521.csv"]
+    # Human shasta chr20
+    # csv_paths = ["/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_test_chr20_default/frequency_matrices_chr20_2019_4_24_13_44_34_60693.csv",
+    #              # "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_test_chr20_bayes/frequency_matrices_chr20_2019_4_24_13_49_27_851359.csv",
+    #              "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_test_chr20_no_prior/frequency_matrices_chr20_2019_4_24_15_48_49_147740.csv"]
+
+    # Human shasta chr20 prior update
+    # csv_paths = ["/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_chr20_test_FLAT_PRIOR/frequency_matrices_chr20_2019_4_26_15_27_15_282016.csv",
+    #              "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_chr20_test_hg38_PRIOR/frequency_matrices_chr20_2019_4_26_15_32_46_341847.csv"]
+
+    # # Human shasta chr20 prior update (prior vs no bayes)
+    # csv_paths = ["/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_test_chr20_default/frequency_matrices_chr20_2019_4_24_13_44_34_60693.csv",
+    #              "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_chr20_test_hg38_PRIOR/frequency_matrices_chr20_2019_4_26_15_32_46_341847.csv"]
+
+    csv_paths = ["/home/ryan/code/runlength_analysis/output/runlength_matrix_from_sequence_2019_5_2_16_56_23_643032/frequency_matrices_gi_2019_5_2_16_56_34_198211.csv"]
+
+    # Human shasta chr20 prior update (prior vs no bayes)
+    # csv_paths = ["/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_chr20_test_hybrid/frequency_matrices_chr20_2019_5_1_15_22_14_408056.csv",
+    #              "/home/ryan/code/runlength_analysis/output/runlength_matrix_from_shasta_assembly_chr20_test_NO_hybrid/frequency_matrices_chr20_2019_5_2_13_57_16_495593.csv"]
 
     # csv_paths = ["/home/ryan/code/runlength_analysis/output/confusion_matrix_from_shasta_ecoli_60x_test_NO_BAYES/frequency_matrices_2019_4_2_9_33_38_540396.csv",
     #              "/home/ryan/code/runlength_analysis/output/confusion_matrix_from_shasta_ecoli_60x_test_BAYES/frequency_matrices_2019_4_2_9_31_35_82369.csv",
@@ -206,6 +222,7 @@ def main():
     weighted_distances = dict()
     row_confusions = dict()
     for path in csv_paths:
+        print(path)
         matrix = load_base_probability_matrix_from_csv(path)
         matrix = numpy.sum(matrix, axis=0)
 
@@ -233,6 +250,9 @@ def main():
             row_sum = numpy.sum(matrix[row_mask])
 
             row_accuracies.append(float(row_diagonal_sum/row_sum))
+
+            if i < 11:
+                print(i, row_diagonal_sum/row_sum)
 
             weighted_average = calculate_mean(matrix[row_mask])
             distance = weighted_average - i
@@ -264,7 +284,7 @@ def main():
         print(diagonal_sum/matrix_sum, off_diagonal_sum/matrix_sum)
 
     # plot_mean_residual_error(weighted_distances, names)
-    plot_residual_error(row_confusions, names, y_min=-matrix.shape[0], y_max=matrix.shape[0])
+    plot_residual_error(row_confusions, names, y_min=-matrix.shape[0], y_max=matrix.shape[0], max_length=30)
 
 
 if __name__ == "__main__":

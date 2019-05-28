@@ -67,8 +67,6 @@ def update_frequency_matrix(observed_pileup, read_consensus_base, true_base, tru
         if observed_base == read_consensus_base:
             matrix[int(item.reversal), true_base_index, true_length, observed_length] += weight
 
-        # matrix[int(item.reversal), base_index, true_length, observed_length] += count
-
     return
 
 
@@ -134,13 +132,14 @@ def parse_match(alignment_position, length, read_sequence, observed_pileup_segme
 
         observed_pileup = observed_pileup_segment[i-alignment_position]
 
-        update_frequency_matrix(observed_pileup=observed_pileup,
-                                read_consensus_base=read_base,
-                                # read_consensus_length=read_consensus_length,
-                                true_base=ref_base,
-                                true_length=ref_runlength,
-                                alignment_reversal=reversal_status,
-                                matrix=matrix)
+        if ref_base in BASE_TO_INDEX:
+            update_frequency_matrix(observed_pileup=observed_pileup,
+                                    read_consensus_base=read_base,
+                                    # read_consensus_length=read_consensus_length,
+                                    true_base=ref_base,
+                                    true_length=ref_runlength,
+                                    alignment_reversal=reversal_status,
+                                    matrix=matrix)
 
     return
 

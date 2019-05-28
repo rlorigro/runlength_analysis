@@ -1,10 +1,11 @@
 from discrete_weibull_distribution import evaluate_discrete_weibull, calculate_mode
-from handlers.RunlengthHandler_v2 import RunlengthHandler
+from handlers.RunlengthHandler_v2 import Read
 from handlers.FastaHandler import FastaHandler
 from handlers.BamHandler import BamHandler
 from modules.align import align_minimap
 from modules.matrix import *
 import numpy
+import h5py
 import sys
 import os
 
@@ -38,6 +39,9 @@ def update_frequency_matrix(observed_scale, observed_shape, true_base, true_leng
     # Evaluate the distribution at all indexes
     y = evaluate_discrete_weibull(shape=observed_shape, scale=observed_scale, x=X_RANGE)
 
+    if true_length > MAX_RUNLENGTH:
+        true_length = MAX_RUNLENGTH
+
     matrix[int(alignment_reversal), true_base_index, true_length, 1:] += y
 
     # matrix[int(alignment_reversal), true_base_index, true_length, numpy.argmax(y)+1] += 1
@@ -63,18 +67,9 @@ def complement_base(base):
 
 
 def reverse_complement_runlength_read(runlength_read):
-    sequence = runlength_read.sequence
-    scales = runlength_read.scales
-    shapes = runlength_read.shapes
-
-    reverse_complemented_sequence = list()
-    reverse_complemented_scales = list()
-    reverse_complemented_shapes = list()
-
-    for i in reversed(range(len(sequence))):
-        reverse_complemented_sequence.append(complement_base(sequence[i]))
-        reverse_complemented_scales.append(scales[i])
-        reverse_complemented_shapes.append(shapes[i])
+    reverse_complemented_sequence = reversed(runlength_read.sequence)
+    reverse_complemented_scales = numpy.array(runlength_read.scales)[::-1]
+    reverse_complemented_shapes = numpy.array(runlength_read.shapes)[::-1]
 
     reverse_complemented_sequence = "".join(reverse_complemented_sequence)
 
@@ -107,12 +102,13 @@ def parse_match(alignment_position, length, read_sequence, observed_scales_segme
         observed_scale = observed_scales_segment[i-alignment_position]
         observed_shape = observed_shapes_segment[i-alignment_position]
 
-        update_frequency_matrix(observed_scale=observed_scale,
-                                observed_shape=observed_shape,
-                                true_base=ref_base,
-                                true_length=ref_runlength,
-                                alignment_reversal=reversal_status,
-                                matrix=matrix)
+        if ref_base in BASE_TO_INDEX:
+            update_frequency_matrix(observed_scale=observed_scale,
+                                    observed_shape=observed_shape,
+                                    true_base=ref_base,
+                                    true_length=ref_runlength,
+                                    alignment_reversal=reversal_status,
+                                    matrix=matrix)
 
     return
 
@@ -210,6 +206,15 @@ def get_read_stop_position(read):
     return ref_alignment_stop
 
 
+def read_hdf5_as_object(hdf5_runlength_read):
+    runlength_read = Read(read_id=hdf5_runlength_read.name[1:],
+                          sequence=hdf5_runlength_read["sequence"][()].decode(),
+                          scales=hdf5_runlength_read["scales"],
+                          shapes=hdf5_runlength_read["shapes"])
+
+    return runlength_read
+
+
 def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, complete_ref_runlengths, matrix):
     """
     Given a set of pysam read objects, generate data for matches/mismatches/inserts/deletes and contig size/position for
@@ -230,9 +235,10 @@ def parse_reads(reads, chromosome_name, fasta_handler, runlength_read_data, comp
             ref_length = ref_alignment_stop - ref_alignment_start
             cigar_tuples = read.cigartuples
             reversal_status = read.is_reverse
-            runlength_read = runlength_read_data[read_id]
+            runlength_read = read_hdf5_as_object(runlength_read_data[read_id])
 
             if reversal_status:
+                # continue
                 runlength_read = reverse_complement_runlength_read(runlength_read)
 
             observed_scales = runlength_read.scales
@@ -405,14 +411,14 @@ def align_as_RLE(runlength_reference_path, runlength_ref_sequences, runlength_re
     print("SAVING run length fasta file:", runlength_read_path)
 
     with open(runlength_reference_path, "w") as file:
-        for contig_name in runlength_ref_sequences:
-            file.write(">"+contig_name+" RLE\n")
-            file.write(runlength_ref_sequences[contig_name][SEQUENCE] + "\n")
+        for read_name in runlength_ref_sequences:
+            file.write(">"+read_name+" RLE\n")
+            file.write(runlength_ref_sequences[read_name][SEQUENCE] + "\n")
 
     with open(runlength_read_path, "w") as file:
-        for contig_name in runlength_read_sequences:
-            file.write(">"+contig_name+" RLE\n")
-            file.write(runlength_read_sequences[contig_name].sequence + "\n")
+        for read_name in runlength_read_sequences:
+            file.write(">"+read_name+" RLE\n")
+            file.write(runlength_read_sequences[read_name]["sequence"][()].decode() + "\n")
 
     output_sam_file_path, output_bam_file_path = align_minimap(output_dir=output_dir,
                                                                ref_sequence_path=runlength_reference_path,
@@ -426,12 +432,14 @@ def main():
     # ref_fasta_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_ref.fasta"
     # runlength_path = "/home/ryan/code/runnie_parser/data/synthetic_runnie_test_2019_3_18_11_56_2_830712_runnie.out"
 
-    ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
-    runlength_path = "/home/ryan/data/Nanopore/ecoli/runnie/out/rad2_pass_runnie_0.out"
-    # runlength_path = "/home/ryan/code/runlength_analysis/output/guppy_vs_runnie_ecoli_rad2_train_test_sequences/runnie_subset_train_60x_10kb.out"
+    # ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
+    # runlength_path = "/home/ryan/code/runlength_analysis/output/runnie_hdf5/runnie_rad2_all_pass_2019_5_7.hdf5"
+
+    ref_fasta_path = "/home/ryan/data/GIAB/chromosomal/chr20/hg38.chr20.fa"
+    runlength_path = "/home/ryan/data/Nanopore/Human/runnie/NA12878/part1_outs/runnie_2019_5_23_18_26_16_616983.hdf5"
 
     output_parent_dir = "output/"
-    output_dir = "runlength_matrix_from_runnie_output_" + FileManager.get_datetime_string()
+    output_dir = "runlength_matrix_from_runnie_hdf5_output_" + FileManager.get_datetime_string()
     output_dir = os.path.join(output_parent_dir, output_dir)
     FileManager.ensure_directory_exists(output_dir)
 
@@ -443,16 +451,9 @@ def main():
     runlength_assembly_fasta_filename = assembly_fasta_filename_prefix + "_rle.fasta"
     runlength_assembly_fasta_path = os.path.join(output_dir, runlength_assembly_fasta_filename)
 
-    handler = RunlengthHandler(runlength_path)
+    # handler = RunlengthHandler(runlength_path)
 
-    reads = handler.iterate_file(sequence_cutoff=sys.maxsize)
-
-    read_data = dict()
-
-    print("Parsing runnie file...")
-
-    for r,read in enumerate(reads):
-        read_data[read.id] = read
+    read_data = h5py.File(runlength_path, "r")
 
     print("\nRLE encoding reference sequence...")
 

@@ -48,7 +48,7 @@ def main(bam_file_path, cutoff, contig_name):
 
     all_counts = defaultdict(lambda: Counter())
 
-    sys.stderr.write("reading fasta file...\n")
+    sys.stderr.write("reading file...\n")
     sys.stderr.flush()
 
     c = 0
