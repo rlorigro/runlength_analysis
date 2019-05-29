@@ -30,8 +30,8 @@ def runlength_encode_fasta(ref_fasta_path, read_fasta_path, output_parent_dir="o
     runlength_read_fasta_filename = read_fasta_filename_prefix + "_rle.fasta"
     runlength_read_fasta_path = os.path.join(output_dir, runlength_read_fasta_filename)
 
-    runlength_ref_sequences = runlength_encode_fasta_parallel(fasta_sequence_path=ref_fasta_path)
-    runlength_read_sequences = runlength_encode_fasta_parallel(fasta_sequence_path=read_fasta_path, min_length=10000)
+    runlength_ref_sequences = runlength_encode_fasta_parallel(fasta_sequence_path=ref_fasta_path, min_length=0)
+    runlength_read_sequences = runlength_encode_fasta_parallel(fasta_sequence_path=read_fasta_path, min_length=0)
 
     write_fasta(runlength_reference_path=runlength_ref_fasta_path,
                 runlength_ref_sequences=runlength_ref_sequences,
