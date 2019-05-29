@@ -18,7 +18,7 @@ def write_fasta(runlength_reference_path, runlength_ref_sequences, runlength_rea
 
 
 def runlength_encode_fasta(ref_fasta_path, read_fasta_path, output_parent_dir="output/"):
-    output_dir = "runlength_matrix_from_sequence_" + FileManager.get_datetime_string()
+    output_dir = "runlength_sequence_" + FileManager.get_datetime_string()
     output_dir = os.path.join(output_parent_dir, output_dir)
     FileManager.ensure_directory_exists(output_dir)
 
