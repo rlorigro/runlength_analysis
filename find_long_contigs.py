@@ -1,5 +1,5 @@
 import sys
-from handlers.FastqReader import FastqReader
+from handlers.FastqHandler import FastqHandler
 from handlers.FastaHandler import FastaHandler
 from matplotlib import pyplot
 import argparse
@@ -11,29 +11,19 @@ Iterate a fastq file and find the read lengths
 
 
 def main(sequences_path, cutoff):
-    if sequences_path.endswith(".fastq"):
-        reads = FastqReader().iterate_file(path=sequences_path)
-    elif sequences_path.endswith(".fasta") or sequences_path.endswith(".fa"):
-        reads = FastaHandler(sequences_path).iterate_file()
-    else:
-        exit("Improper file format: %s" % sequences_path)
+    fasta = FastaHandler(sequences_path)
+    names = fasta.get_contig_names()
 
     n_reads = 0
 
     with open("assemble_long_segments.sh", "w") as file:
-        for i, item in enumerate(reads):
+        for i, name in enumerate(names):
+            length = fasta.get_chr_sequence_length(name)
+
             n_reads += 1
 
-            if sequences_path.endswith(".fastq"):
-                header, sequence, quality = item
-            elif sequences_path.endswith(".fasta") or sequences_path.endswith(".fa"):
-                header, sequence = item
-            else:
-                exit("unrecognized file type")
-
-            if len(sequence) > cutoff:
-                name = header.split(" ")[0]
-                print(name, len(sequence))
+            if length > cutoff:
+                print(name, length)
                 file.write("../build/shasta-install/bin/AssembleSegment.py " + name + "\n")
 
 
