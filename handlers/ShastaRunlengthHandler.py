@@ -85,7 +85,11 @@ class ShastaRunlengthHandler:
     def read_file(self, cutoff=sys.maxsize):
         with open(self.file_path, "r") as file:
             for l,line in enumerate(file):
-                self.parse_line(line)
+                try:
+                    self.parse_line(line)
+                except Exception as e:
+                    print(e)
+                    exit("ERROR on line %d in file %s"%(l, self.file_path))
 
                 if l == cutoff:
                     break
