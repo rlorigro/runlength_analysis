@@ -3,6 +3,7 @@ from handlers.FastaHandler import FastaHandler
 from handlers.BamHandler import BamHandler
 from modules.align import align_minimap
 from modules.matrix import *
+from multiprocessing import Pool, Manager, cpu_count
 import argparse
 import numpy
 import copy
@@ -407,6 +408,68 @@ def runlength_encode(sequence):
     return character_sequence, character_counts
 
 
+def runlength_encode_parallel(fasta_sequence_path, contig_name, runlength_sequences, min_length):
+    fasta_handler = FastaHandler(fasta_sequence_path)
+
+    try:
+        sequence = fasta_handler.get_sequence(chromosome_name=contig_name, start=None, stop=None)
+    except ValueError as e:
+        print(e)
+        print("ERROR: pysam fetch failed on contig: %s" % contig_name)
+        return
+
+    if len(sequence) < min_length:
+        return
+
+    character_sequence = [numpy.uint8(x) for x in range(0)]
+    character_counts = [numpy.uint8(x) for x in range(0)]
+    current_character = ""
+
+    for character in sequence:
+        if character != current_character:
+            character_sequence.append(character)
+            character_counts.append(1)
+        else:
+            character_counts[-1] += 1
+
+        current_character = character
+
+    character_sequence = ''.join(character_sequence)
+
+    runlength_sequences[contig_name] = (character_sequence, character_counts)
+
+    sys.stderr.write("\rRun length encoded %s            " % contig_name)
+
+
+def runlength_encode_fasta_parallel(fasta_sequence_path, max_threads=None, min_length=0):
+    if min_length > 0:
+        print("WARNING: excluding all sequences less than length %d" % min_length)
+
+    fasta_handler = FastaHandler(fasta_sequence_path)
+
+    contig_names = fasta_handler.get_contig_names()
+
+    manager = Manager()
+    runlength_sequences = manager.dict()
+
+    args = list()
+    for contig_name in contig_names:
+        args.append([fasta_sequence_path, contig_name, runlength_sequences, min_length])
+
+    if max_threads is None:
+        max_threads = max(1, cpu_count() - 2)
+
+    if max_threads > len(args):
+        max_threads = len(args)
+
+    with Pool(processes=max_threads, maxtasksperchild=40) as pool:
+        pool.starmap(runlength_encode_parallel, args, chunksize=1)
+
+    sys.stderr.write("\n")
+
+    return runlength_sequences
+
+
 def runlength_encode_fasta(fasta_sequence_path):
     fasta_handler = FastaHandler(fasta_sequence_path)
 
@@ -466,6 +529,10 @@ def main(ref_fasta_path, shasta_parent_dir):
 
     all_matrices = list()
 
+    print("\nRLE encoding reference sequence...")
+
+    runlength_ref_sequences = runlength_encode_fasta_parallel(fasta_sequence_path=ref_fasta_path)
+
     for shasta_path in shasta_paths:
         reads_fasta_filename_prefix = ".".join(os.path.basename(shasta_path).split(".")[:-1])
         runlength_reads_fasta_filename = reads_fasta_filename_prefix + "_rle.fasta"
@@ -478,10 +545,6 @@ def main(ref_fasta_path, shasta_parent_dir):
         name, read = shasta_handler.get_pileup_data(cutoff=sys.maxsize)
 
         read_data = {name:read}
-
-        print("\nRLE encoding reference sequence...")
-
-        runlength_ref_sequences = runlength_encode_fasta(fasta_sequence_path=ref_fasta_path)
 
         reads_vs_ref_bam_path = align_as_RLE(runlength_reference_path=runlength_ref_fasta_path,
                                              runlength_ref_sequences=runlength_ref_sequences,
