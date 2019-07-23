@@ -507,6 +507,7 @@ def main(ref_fasta_path, shasta_parent_dir):
                                                           frequency_matrices=matrix,
                                                           chromosome_name="genomic",
                                                           log_normalize=False,
+                                                          pseudocount=1,
                                                           diagonal_bias=0,
                                                           plot=False,
                                                           default_type=float)
@@ -515,7 +516,7 @@ def main(ref_fasta_path, shasta_parent_dir):
                                                           frequency_matrices=matrix,
                                                           chromosome_name="genomic",
                                                           log_normalize=True,
-                                                          pseudocount=15,
+                                                          pseudocount=1,
                                                           diagonal_bias=0,
                                                           plot=False,
                                                           default_type=float)
@@ -526,12 +527,16 @@ def main(ref_fasta_path, shasta_parent_dir):
                                                              frequency_matrices=nondirectional_matrix,
                                                              chromosome_name="genomic",
                                                              log_normalize=False,
+                                                             pseudocount=1,
+                                                             diagonal_bias=0,
                                                              plot=False)
 
     save_nondirectional_frequency_matrices_as_delimited_text(output_dir=output_dir,
                                                              frequency_matrices=nondirectional_matrix,
                                                              chromosome_name="genomic",
                                                              log_normalize=True,
+                                                             pseudocount=1,
+                                                             diagonal_bias=0,
                                                              plot=False)
 
     # zero_mask = (matrix == 0)
@@ -567,6 +572,7 @@ if __name__ == "__main__":
 
 """
     # E. COLI rad2
+    # ref_fasta_path = "/home/ryan/data/GIAB/chromosomal/chr20/hg38.chr20.fa"
     # ref_fasta_path = "/home/ryan/data/Nanopore/ecoli/miten/refEcoli.fasta"
     # shasta_path = "/home/ryan/code/runlength_analysis/data/shasta_coverage_data_ecoli_60x_train.csv"
 
