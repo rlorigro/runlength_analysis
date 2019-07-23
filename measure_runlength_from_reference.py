@@ -29,12 +29,15 @@ def count_runlength_per_character(sequence):
     return character_counts
 
 
-def print_all_counts(all_counts):
-    for character in all_counts:
-        print(">Character %s" % character)
+def print_all_counts(all_counts, output_dir):
+    file_path = os.path.join(output_dir, "raw_counts_genomic.txt")
 
-        for item in sorted(all_counts[character].items(), key=lambda x: x[0]):
-            print("%d %d" % (item[0], item[1]))
+    with open(file_path, "w") as file:
+        for character in all_counts:
+            file.write(">Character %s" % character + "\n")
+
+            for item in sorted(all_counts[character].items(), key=lambda x: x[0]):
+                file.write("%d %d" % (item[0], item[1]) + "\n")
 
 
 def print_all_counts_as_shasta_matrix(all_counts, max_count=50, pseudocount=1):
@@ -76,8 +79,23 @@ def print_all_counts_as_shasta_matrix(all_counts, max_count=50, pseudocount=1):
     print()
 
 
+def plot_counts_as_histogram(axes, counts, max_count, step):
+    bins = numpy.arange(1, max_count + step, step=step)
+    frequencies, bins = numpy.histogram(counts, bins=bins, normed=False)
+
+    frequencies = numpy.log10(frequencies + 0.01) + 0.01
+
+    center = (bins[:-1] + bins[1:]) / 2 - step / 2 - 1
+
+    axes.bar(center, frequencies, width=step, align="center")
+    axes.set_ylabel("Log10 Frequency")
+    axes.set_xlabel("Run Length (bp)")
+    axes.set_ylim([-0.5, 10])
+
+
 def main(reference_file_path):
-    output_dir = "output/ref_run_lengths/GRCh38/"
+    input_prefix_name = os.path.basename(reference_file_path).split("/")[-1].split(".")[0]
+    output_dir = os.path.join("output/ref_run_lengths/", input_prefix_name)
     filename_prefix = "ref_runlength_distribution"
 
     FileManager.ensure_directory_exists(output_dir)
@@ -89,18 +107,22 @@ def main(reference_file_path):
     print(sorted([(x,fasta_handler.get_chr_sequence_length(x)) for x in contig_names],key=lambda x: x[1]))
 
     all_counts = defaultdict(lambda: Counter())
+    raw_counts_AT = list()
+    raw_counts_GC = list()
 
     sys.stderr.write("reading fasta file...\n")
     sys.stderr.flush()
 
+    max_count = 100
+    step = 1
     c = 0
     for chromosome_name in contig_names:
-        if len(contig_names) > 1:
-            if not chromosome_name.startswith("chr"):
-                print("WARNING: SKIPPING CHROMOSOME %s" % chromosome_name)
-                continue
+        # if len(contig_names) > 1:
+        #     if not chromosome_name.startswith("chr") or "alt" in chromosome_name or "v" in chromosome_name:
+        #         print("WARNING: SKIPPING CHROMOSOME %s" % chromosome_name)
+        #         continue
 
-        # if c > 1:
+        # if c == 1:
         #     break
         c += 1
 
@@ -120,17 +142,14 @@ def main(reference_file_path):
             counter = Counter(counts)
             all_counts[key] += counter
 
-            max_count = 50
+            if key in {"C","G"}:
+                raw_counts_GC += counts
 
-            step = 1
-            bins = numpy.arange(1, max_count + step, step=step)
-            frequencies, bins = numpy.histogram(counts, bins=bins, normed=False)
+            if key in {"A","T"}:
+                raw_counts_AT += counts
 
-            frequencies = numpy.log10(frequencies+0.01) + 0.01
+            plot_counts_as_histogram(axes=axes[k], counts=counts, max_count=max_count, step=step)
 
-            center = (bins[:-1] + bins[1:])/2 - step/2 - 1
-
-            axes[k].bar(center, frequencies, width=step, align="center")
             axes[k].set_ylabel(str(key))
             axes[k].set_ylim([-0.5,10])
 
@@ -142,9 +161,22 @@ def main(reference_file_path):
         # pyplot.show()
         pyplot.close()
 
-    print_all_counts_as_shasta_matrix(all_counts, max_count=50)
+    figure, axes = pyplot.subplots(nrows=2)
 
-    print_all_counts(all_counts)
+    filename = filename_prefix + "_genomic.png"
+    file_path = os.path.join(output_dir, filename)
+
+    plot_counts_as_histogram(axes=axes[0], counts=raw_counts_AT, max_count=max_count, step=step)
+    plot_counts_as_histogram(axes=axes[1], counts=raw_counts_GC, max_count=max_count, step=step)
+    axes[0].set_ylabel("AT Log10 Frequency")
+    axes[1].set_ylabel("GC Log10 Frequency")
+
+    figure.savefig(file_path)
+    # pyplot.show()
+    pyplot.close()
+
+    print_all_counts_as_shasta_matrix(all_counts, max_count=50)
+    print_all_counts(all_counts, output_dir)
 
 
 def test_runlength_counter():

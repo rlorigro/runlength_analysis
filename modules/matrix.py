@@ -369,7 +369,7 @@ def complement_base_index(base_index):
     return 3 - base_index
 
 
-def normalize(frequency_matrix, pseudocount, diagonal_bias=0):
+def normalize(frequency_matrix, pseudocount, diagonal_bias=0, logify=True):
     frequency_matrix = frequency_matrix.astype(numpy.float32)
 
     frequency_matrix += pseudocount
@@ -381,12 +381,14 @@ def normalize(frequency_matrix, pseudocount, diagonal_bias=0):
     sum_y = numpy.sum(frequency_matrix, axis=1)
 
     probability_matrix = frequency_matrix / sum_y[:, numpy.newaxis]
-    probability_matrix = numpy.log10(probability_matrix)
+
+    if logify:
+        probability_matrix = numpy.log10(probability_matrix)
 
     return probability_matrix
 
 
-def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, chromosome_name=None, delimiter=",", log_normalize=False, plot=False, pseudocount=0, diagonal_bias=0, default_type=int):
+def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, chromosome_name=None, delimiter=",", log_normalize=False, plot=False, pseudocount=1e-12, diagonal_bias=0, default_type=int):
     if chromosome_name is not None:
         name_suffix = chromosome_name + "_"
     else:
@@ -440,16 +442,17 @@ def save_directional_frequency_matrices_as_delimited_text(output_dir, frequency_
     file.close()
 
 
-def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, chromosome_name=None, delimiter=",", log_normalize=False, pseudocount=1e-12, diagonal_bias=0, plot=False, default_type=int):
-    if chromosome_name is not None:
-        name_suffix = chromosome_name + "_"
-    else:
-        name_suffix = ""
+def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequency_matrices, chromosome_name=None, delimiter=",", log_normalize=False, pseudocount=1e-12, diagonal_bias=0, plot=False, default_type=int, filename=None):
+    if filename is None:
+        if chromosome_name is not None:
+            name_suffix = chromosome_name + "_"
+        else:
+            name_suffix = ""
 
-    if log_normalize:
-        filename = "probability_matrices_" + name_suffix + FileManager.get_datetime_string() + ".csv"
-    else:
-        filename = "frequency_matrices_" + name_suffix + FileManager.get_datetime_string() + ".csv"
+        if log_normalize:
+            filename = "probability_matrices_" + name_suffix + FileManager.get_datetime_string() + ".csv"
+        else:
+            filename = "frequency_matrices_" + name_suffix + FileManager.get_datetime_string() + ".csv"
 
     output_path = os.path.join(output_dir, filename)
     file = open(output_path, "w")
@@ -470,6 +473,10 @@ def save_nondirectional_frequency_matrices_as_delimited_text(output_dir, frequen
             pyplot.close()
 
         matrix_name = base
+
+        if log_normalize:
+            matrix_name += " likelihood"
+
         header = ">" + matrix_name + "\n"
 
         file.write(header)

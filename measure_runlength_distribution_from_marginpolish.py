@@ -554,6 +554,7 @@ def main(ref_fasta_path, marginpolish_parent_dir, max_threads):
                                                           frequency_matrices=matrix,
                                                           chromosome_name="genomic",
                                                           log_normalize=False,
+                                                          pseudocount=15,
                                                           diagonal_bias=0,
                                                           plot=False,
                                                           default_type=float)

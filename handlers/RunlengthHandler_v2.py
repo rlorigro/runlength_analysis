@@ -15,6 +15,7 @@ class Read:
         else:
             self.sequence = sequence
 
+
 class RunlengthHandler:
     def __init__(self, path):
         self.path = path
@@ -165,12 +166,16 @@ class RunlengthHandler:
         if shape > 0 and scale > 0:
             y = evaluate_discrete_weibull(shape=shape, scale=scale, x=x_range)
 
+            # print("--------------")
+            # print(y[:10])
+            # print(scale, shape)
+
             # Get analytical mode for the continuous weibull using parameters
             mode = calculate_mode(scale=scale, shape=shape)
 
             # Generate window of +1 -1 around analytical mode
-            min_index = max(0, round(mode) - 1)
-            max_index = min_index + 2
+            min_index = int(max(0, round(mode) - 1))
+            max_index = int(min_index + 2)
 
             # Find numerical mode within window
             mode_numerical = min_index + numpy.argmax(y[min_index:max_index])
