@@ -89,6 +89,7 @@ class ShastaRunlengthHandler:
                     self.parse_line(line)
                 except Exception as e:
                     print(e)
+                    print(line)
                     exit("ERROR on line %d in file %s"%(l, self.file_path))
 
                 if l == cutoff:
