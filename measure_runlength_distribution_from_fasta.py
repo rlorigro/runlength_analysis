@@ -346,9 +346,9 @@ def generate_runlength_frequency_matrix(runlength_ref_sequence_path, read_vs_ref
         #     print("WARNING: SKIPPING CHROMOSOME %s BECAUSE NOT IN %s" % (chromosome_name, str(allowed_chromosomes)))
         #     continue
 
-        if not chromosome_name.startswith("chrX"):
-            print("WARNING: SKIPPING CHROMOSOME %s BECAUSE NOT chrX" % chromosome_name)
-            continue
+        # if not chromosome_name.startswith("chrX"):
+        #     print("WARNING: SKIPPING CHROMOSOME %s BECAUSE NOT chrX" % chromosome_name)
+        #     continue
 
         shape = [2,4,MAX_RUNLENGTH+1,MAX_RUNLENGTH+1]
         matrix = numpy.zeros(shape, dtype=numpy.float64)
