@@ -1,13 +1,5 @@
-import sys
-from handlers.FastqHandler import FastqHandler
 from handlers.FastaHandler import FastaHandler
-from matplotlib import pyplot
 import argparse
-import numpy
-
-'''
-Iterate a fastq file and find the read lengths
-'''
 
 
 def main(sequences_path, cutoff):

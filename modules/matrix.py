@@ -194,7 +194,7 @@ def diff_directional_matrices(directional_matrices, max_runlength):
     return nondirectional_matrices
 
 
-def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=False):
+def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=False, pseudocount=0):
     figure, axes = pyplot.subplots(nrows=2, ncols=2)
     figure.set_size_inches(8, 8)
 
@@ -205,7 +205,7 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
             matrix_A[cutoff-1,0] = numpy.max(numpy.log10(matrix_A)) + 1
 
         if normalize_matrices:
-            matrix_A = normalize(matrix_A, pseudocount=0)
+            matrix_A = normalize(matrix_A, pseudocount=pseudocount)
             axes[0][0].imshow(matrix_A)
         else:
             axes[0][0].imshow(numpy.log10(matrix_A))
@@ -215,7 +215,7 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
         matrix_T = matrix[0, 3, :cutoff, :cutoff]
 
         if normalize_matrices:
-            matrix_T  = normalize(matrix_T, pseudocount=0)
+            matrix_T  = normalize(matrix_T, pseudocount=pseudocount)
             axes[1][0].imshow(matrix_T)
         else:
             axes[1][0].imshow(numpy.log10(matrix_T))
@@ -225,7 +225,7 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
         matrix_G = matrix[0, 2, :cutoff, :cutoff]
 
         if normalize_matrices:
-            matrix_G  = normalize(matrix_G, pseudocount=0)
+            matrix_G  = normalize(matrix_G, pseudocount=pseudocount)
             axes[0][1].imshow(matrix_G)
         else:
             axes[0][1].imshow(numpy.log10(matrix_G))
@@ -235,7 +235,7 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
         matrix_C = matrix[0, 1, :cutoff, :cutoff]
 
         if normalize_matrices:
-            matrix_C  = normalize(matrix_C, pseudocount=0)
+            matrix_C  = normalize(matrix_C, pseudocount=pseudocount)
             axes[1][1].imshow(matrix_C)
         else:
             axes[1][1].imshow(numpy.log10(matrix_C))
@@ -249,7 +249,7 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
             matrix_A[cutoff, 0] = numpy.max(matrix_A)
 
         if normalize_matrices:
-            matrix_A = normalize(matrix_A, pseudocount=0)
+            matrix_A = normalize(matrix_A, pseudocount=pseudocount)
             axes[0][0].imshow(matrix_A)
         else:
             axes[0][0].imshow(numpy.log10(matrix_A))
@@ -259,7 +259,7 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
         matrix_T = matrix[3, :cutoff, :cutoff]
 
         if normalize_matrices:
-            matrix_T  = normalize(matrix_T, pseudocount=0)
+            matrix_T  = normalize(matrix_T, pseudocount=pseudocount)
             axes[1][0].imshow(matrix_T)
         else:
             axes[1][0].imshow(numpy.log10(matrix_T))
@@ -268,7 +268,7 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
         matrix_G = matrix[2, :cutoff, :cutoff]
 
         if normalize_matrices:
-            matrix_G  = normalize(matrix_G, pseudocount=0)
+            matrix_G  = normalize(matrix_G, pseudocount=pseudocount)
             axes[0][1].imshow(matrix_G)
         else:
             axes[0][1].imshow(numpy.log10(matrix_G))
@@ -277,7 +277,7 @@ def plot_base_matrices(matrix, test_spot=False, cutoff=20, normalize_matrices=Fa
         matrix_C = matrix[1, :cutoff, :cutoff]
 
         if normalize_matrices:
-            matrix_C  = normalize(matrix_C, pseudocount=0)
+            matrix_C  = normalize(matrix_C, pseudocount=pseudocount)
             axes[1][1].imshow(matrix_C)
         else:
             axes[1][1].imshow(numpy.log10(matrix_C))
